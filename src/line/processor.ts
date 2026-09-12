@@ -30,13 +30,14 @@ export async function processWebhookEvents(
       ? await executeCommand(normalized.text, deps.config, deps.intelligence)
       : routeCommand(normalized.text, deps.config);
     if (response === null) continue;
-    if (!deps.deduper.claim(normalized.eventId)) continue;
+    if (!(await deps.deduper.claim(normalized))) continue;
 
     try {
       await deps.reply.reply(normalized.replyToken, response);
     } catch (error) {
-      deps.deduper.release(normalized.eventId);
+      await deps.deduper.release(normalized.eventId);
       throw error;
     }
+    await deps.deduper.markProcessed(normalized.eventId);
   }
 }

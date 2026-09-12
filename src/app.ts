@@ -11,6 +11,10 @@ import { buildHealthReport } from './health.js';
 import { InMemoryEventDeduper, type EventDeduper } from './line/dedupe.js';
 import { processWebhookEvents } from './line/processor.js';
 import { createLineSdkReplyClient, type LineReplyPort } from './line/reply.js';
+import { createPostgresEventDeduper } from './persistence/event-ledger.js';
+import { ResilientEventDeduper } from './persistence/fallback-dedupe.js';
+import { createPostgresPool } from './persistence/postgres.js';
+import type { DatabasePool } from './persistence/types.js';
 import { createProjectIntelligenceFromConfig } from './projects/factory.js';
 import type { ProjectIntelligence } from './projects/intelligence.js';
 
@@ -18,11 +22,10 @@ type AppOptions = {
   deduper?: EventDeduper;
   reply?: LineReplyPort;
   intelligence?: ProjectIntelligence;
+  databasePool?: DatabasePool;
 };
 
-type WebhookBody = {
-  events: webhook.Event[];
-};
+type WebhookBody = { events: webhook.Event[] };
 
 function parseWebhookBody(value: unknown): WebhookBody | null {
   if (!value || typeof value !== 'object') return null;
@@ -45,10 +48,13 @@ export function createApp(config: AppConfig, options: AppOptions = {}): Express 
     return app;
   }
 
-  const deduper = options.deduper ?? new InMemoryEventDeduper();
+  const databasePool = options.databasePool ??
+    (config.database ? createPostgresPool(config.database) : null);
+  const deduper = options.deduper ?? (databasePool
+    ? new ResilientEventDeduper(createPostgresEventDeduper(databasePool), new InMemoryEventDeduper())
+    : new InMemoryEventDeduper());
   const reply = options.reply ?? createLineSdkReplyClient(config.line.channelAccessToken);
-  const intelligence = options.intelligence ??
-    createProjectIntelligenceFromConfig(config.projects);
+  const intelligence = options.intelligence ?? createProjectIntelligenceFromConfig(config.projects);
 
   app.post(
     '/webhook',
@@ -60,13 +66,7 @@ export function createApp(config: AppConfig, options: AppOptions = {}): Express 
           response.status(400).json({ error: 'invalid_webhook_body' });
           return;
         }
-
-        await processWebhookEvents(body.events, {
-          config,
-          deduper,
-          reply,
-          intelligence,
-        });
+        await processWebhookEvents(body.events, { config, deduper, reply, intelligence });
         response.status(200).json({ ok: true });
       } catch (error) {
         next(error);
