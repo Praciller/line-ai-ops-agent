@@ -15,6 +15,7 @@ import { createPostgresCommandAudit, type CommandAudit } from './persistence/aud
 import { createPostgresEventDeduper } from './persistence/event-ledger.js';
 import { ResilientEventDeduper } from './persistence/fallback-dedupe.js';
 import { NoopCommandAudit } from './persistence/noop.js';
+import { createPostgresObservabilityStore } from './persistence/observability.js';
 import { createPostgresPool } from './persistence/postgres.js';
 import type { DatabasePool } from './persistence/types.js';
 import { createProjectIntelligenceFromConfig } from './projects/factory.js';
@@ -59,8 +60,12 @@ export function createApp(config: AppConfig, options: AppOptions = {}): Express 
   const audit = options.audit ?? (databasePool
     ? createPostgresCommandAudit(databasePool)
     : new NoopCommandAudit());
+  const observability = databasePool ? createPostgresObservabilityStore(databasePool) : undefined;
   const reply = options.reply ?? createLineSdkReplyClient(config.line.channelAccessToken);
-  const intelligence = options.intelligence ?? createProjectIntelligenceFromConfig(config.projects);
+  const intelligence = options.intelligence ?? createProjectIntelligenceFromConfig(
+    config.projects,
+    { observability },
+  );
 
   app.post(
     '/webhook',
