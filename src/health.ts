@@ -1,6 +1,6 @@
 import type { AppConfig } from './config.js';
 
-export type ComponentState = 'not_configured';
+export type ComponentState = 'not_configured' | 'configured';
 
 export type HealthReport = {
   service: string;
@@ -19,7 +19,7 @@ export function buildHealthReport(config: AppConfig): HealthReport {
     status: 'ok',
     mode: 'dry-run',
     components: {
-      line: 'not_configured',
+      line: config.line ? 'configured' : 'not_configured',
       database: 'not_configured',
       ai: 'not_configured',
     },
