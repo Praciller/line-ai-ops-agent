@@ -21,11 +21,23 @@ function parseRepositorySlugs(value: string): string[] {
 
 function requireHttpsUrl(value: string): string {
   const parsed = new URL(value);
-  if (parsed.protocol !== 'https:') {
-    throw new Error('Project status URLs must use HTTPS');
-  }
+  if (parsed.protocol !== 'https:') throw new Error('Project status URLs must use HTTPS');
   return parsed.toString();
 }
+
+function requirePostgresUrl(value: string): string {
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'postgres:' && parsed.protocol !== 'postgresql:') {
+      throw new Error('Database URL must use PostgreSQL protocol');
+    }
+    return value;
+  } catch (error) {
+    if (error instanceof Error && /PostgreSQL protocol/.test(error.message)) throw error;
+    throw new Error('Database URL must be a valid PostgreSQL URL');
+  }
+}
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
@@ -38,10 +50,15 @@ const envSchema = z.object({
   LINE_CHANNEL_SECRET: z.string().optional(),
   LINE_CHANNEL_ACCESS_TOKEN: z.string().optional(),
   LINE_OWNER_USER_IDS: z.string().optional(),
+  DATABASE_URL: z.string().optional(),
+  DATABASE_CONNECT_TIMEOUT_MS: z.coerce.number().int().min(500, {
+    message: 'Database connect timeout must be at least 500ms',
+  }).max(10000, { message: 'Database connect timeout must be at most 10000ms' }).default(3000),
+  DATABASE_POOL_MAX: z.coerce.number().int().min(1, {
+    message: 'Database pool max must be at least 1',
+  }).max(5, { message: 'Database pool max must be at most 5' }).default(3),
   PROJECT_GITHUB_OWNER: z.string().default('Praciller'),
-  PROJECT_GITHUB_REPOS: z.string().default(
-    'line-ai-ops-agent,opendq-observatory,dreamlogsdata',
-  ),
+  PROJECT_GITHUB_REPOS: z.string().default('line-ai-ops-agent,opendq-observatory,dreamlogsdata'),
   OPENDQ_STATUS_URL: z.string().default('https://opendq-observatory.vercel.app/'),
   DREAMLOGS_STATUS_URL: z.string().default('https://dreamlogsdata.com/'),
   PROJECT_HTTP_TIMEOUT_MS: z.coerce.number().int().min(500, {
@@ -52,12 +69,8 @@ const envSchema = z.object({
   }).max(3600000, { message: 'Project cache TTL must be at most 3600000ms' }).default(300000),
 }).superRefine((value, context) => {
   const ownerIds = parseOwnerUserIds(value.LINE_OWNER_USER_IDS);
-  const anyLineValue = Boolean(
-    value.LINE_CHANNEL_SECRET || value.LINE_CHANNEL_ACCESS_TOKEN || value.LINE_OWNER_USER_IDS,
-  );
-  const complete = Boolean(
-    value.LINE_CHANNEL_SECRET && value.LINE_CHANNEL_ACCESS_TOKEN && ownerIds.length > 0,
-  );
+  const anyLineValue = Boolean(value.LINE_CHANNEL_SECRET || value.LINE_CHANNEL_ACCESS_TOKEN || value.LINE_OWNER_USER_IDS);
+  const complete = Boolean(value.LINE_CHANNEL_SECRET && value.LINE_CHANNEL_ACCESS_TOKEN && ownerIds.length > 0);
   if (anyLineValue && !complete) {
     context.addIssue({
       code: 'custom',
@@ -65,10 +78,17 @@ const envSchema = z.object({
     });
   }
 });
+
 export type LineConfig = {
   channelSecret: string;
   channelAccessToken: string;
   ownerUserIds: readonly string[];
+};
+
+export type DatabaseConfig = {
+  url: string;
+  connectTimeoutMs: number;
+  poolMax: number;
 };
 
 export type ProjectConfig = {
@@ -87,6 +107,7 @@ export type AppConfig = {
   logLevel: z.infer<typeof envSchema>['LOG_LEVEL'];
   openRouterModel: string;
   line: LineConfig | null;
+  database: DatabaseConfig | null;
   projects: ProjectConfig;
 };
 
@@ -100,11 +121,10 @@ export function loadConfig(env: NodeJS.ProcessEnv): AppConfig {
   const dreamlogsUrl = requireHttpsUrl(parsed.DREAMLOGS_STATUS_URL);
   const ownerUserIds = parseOwnerUserIds(parsed.LINE_OWNER_USER_IDS);
   const line = parsed.LINE_CHANNEL_SECRET && parsed.LINE_CHANNEL_ACCESS_TOKEN && ownerUserIds.length > 0
-    ? {
-        channelSecret: parsed.LINE_CHANNEL_SECRET,
-        channelAccessToken: parsed.LINE_CHANNEL_ACCESS_TOKEN,
-        ownerUserIds,
-      }
+    ? { channelSecret: parsed.LINE_CHANNEL_SECRET, channelAccessToken: parsed.LINE_CHANNEL_ACCESS_TOKEN, ownerUserIds }
+    : null;
+  const database = parsed.DATABASE_URL
+    ? { url: requirePostgresUrl(parsed.DATABASE_URL), connectTimeoutMs: parsed.DATABASE_CONNECT_TIMEOUT_MS, poolMax: parsed.DATABASE_POOL_MAX }
     : null;
 
   return {
@@ -114,6 +134,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): AppConfig {
     logLevel: parsed.LOG_LEVEL,
     openRouterModel: parsed.OPENROUTER_MODEL,
     line,
+    database,
     projects: {
       githubOwner: parsed.PROJECT_GITHUB_OWNER,
       githubRepos,
