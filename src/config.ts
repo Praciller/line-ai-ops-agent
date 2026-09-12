@@ -1,19 +1,55 @@
 import { z } from 'zod';
 
+const slugPattern = /^[A-Za-z0-9_.-]+$/;
+
+function parseCsv(value: string | undefined): string[] {
+  if (!value) return [];
+  return [...new Set(value.split(',').map((item) => item.trim()).filter(Boolean))];
+}
+
+function parseOwnerUserIds(value: string | undefined): string[] {
+  return parseCsv(value);
+}
+
+function parseRepositorySlugs(value: string): string[] {
+  const repos = parseCsv(value);
+  if (repos.length === 0 || repos.some((repo) => !slugPattern.test(repo))) {
+    throw new Error('Project repository allowlist must contain repository slugs only');
+  }
+  return repos;
+}
+
+function requireHttpsUrl(value: string): string {
+  const parsed = new URL(value);
+  if (parsed.protocol !== 'https:') {
+    throw new Error('Project status URLs must use HTTPS');
+  }
+  return parsed.toString();
+}
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   SERVICE_NAME: z.string().min(1).default('line-ai-ops-agent'),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
-  OPENROUTER_MODEL: z
-    .string()
-    .default('openrouter/free')
-    .refine((value) => value === 'openrouter/free', {
-      message: 'Free-only policy requires OPENROUTER_MODEL=openrouter/free',
-    }),
+  OPENROUTER_MODEL: z.string().default('openrouter/free').refine(
+    (value) => value === 'openrouter/free',
+    { message: 'Free-only policy requires OPENROUTER_MODEL=openrouter/free' },
+  ),
   LINE_CHANNEL_SECRET: z.string().optional(),
   LINE_CHANNEL_ACCESS_TOKEN: z.string().optional(),
   LINE_OWNER_USER_IDS: z.string().optional(),
+  PROJECT_GITHUB_OWNER: z.string().default('Praciller'),
+  PROJECT_GITHUB_REPOS: z.string().default(
+    'line-ai-ops-agent,opendq-observatory,dreamlogsdata',
+  ),
+  OPENDQ_STATUS_URL: z.string().default('https://opendq-observatory.vercel.app/'),
+  DREAMLOGS_STATUS_URL: z.string().default('https://dreamlogsdata.com/'),
+  PROJECT_HTTP_TIMEOUT_MS: z.coerce.number().int().min(500, {
+    message: 'Project HTTP timeout must be at least 500ms',
+  }).max(10000, { message: 'Project HTTP timeout must be at most 10000ms' }).default(4000),
+  PROJECT_CACHE_TTL_MS: z.coerce.number().int().min(10000, {
+    message: 'Project cache TTL must be at least 10000ms',
+  }).max(3600000, { message: 'Project cache TTL must be at most 3600000ms' }).default(300000),
 }).superRefine((value, context) => {
   const ownerIds = parseOwnerUserIds(value.LINE_OWNER_USER_IDS);
   const anyLineValue = Boolean(
@@ -22,7 +58,6 @@ const envSchema = z.object({
   const complete = Boolean(
     value.LINE_CHANNEL_SECRET && value.LINE_CHANNEL_ACCESS_TOKEN && ownerIds.length > 0,
   );
-
   if (anyLineValue && !complete) {
     context.addIssue({
       code: 'custom',
@@ -30,15 +65,19 @@ const envSchema = z.object({
     });
   }
 });
-function parseOwnerUserIds(value: string | undefined): string[] {
-  if (!value) return [];
-  return [...new Set(value.split(',').map((item) => item.trim()).filter(Boolean))];
-}
-
 export type LineConfig = {
   channelSecret: string;
   channelAccessToken: string;
   ownerUserIds: readonly string[];
+};
+
+export type ProjectConfig = {
+  githubOwner: string;
+  githubRepos: readonly string[];
+  opendqUrl: string;
+  dreamlogsUrl: string;
+  requestTimeoutMs: number;
+  cacheTtlMs: number;
 };
 
 export type AppConfig = {
@@ -48,10 +87,17 @@ export type AppConfig = {
   logLevel: z.infer<typeof envSchema>['LOG_LEVEL'];
   openRouterModel: string;
   line: LineConfig | null;
+  projects: ProjectConfig;
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv): AppConfig {
   const parsed = envSchema.parse(env);
+  if (!slugPattern.test(parsed.PROJECT_GITHUB_OWNER)) {
+    throw new Error('Project GitHub owner must be a repository owner slug');
+  }
+  const githubRepos = parseRepositorySlugs(parsed.PROJECT_GITHUB_REPOS);
+  const opendqUrl = requireHttpsUrl(parsed.OPENDQ_STATUS_URL);
+  const dreamlogsUrl = requireHttpsUrl(parsed.DREAMLOGS_STATUS_URL);
   const ownerUserIds = parseOwnerUserIds(parsed.LINE_OWNER_USER_IDS);
   const line = parsed.LINE_CHANNEL_SECRET && parsed.LINE_CHANNEL_ACCESS_TOKEN && ownerUserIds.length > 0
     ? {
@@ -60,6 +106,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): AppConfig {
         ownerUserIds,
       }
     : null;
+
   return {
     nodeEnv: parsed.NODE_ENV,
     port: parsed.PORT,
@@ -67,5 +114,13 @@ export function loadConfig(env: NodeJS.ProcessEnv): AppConfig {
     logLevel: parsed.LOG_LEVEL,
     openRouterModel: parsed.OPENROUTER_MODEL,
     line,
+    projects: {
+      githubOwner: parsed.PROJECT_GITHUB_OWNER,
+      githubRepos,
+      opendqUrl,
+      dreamlogsUrl,
+      requestTimeoutMs: parsed.PROJECT_HTTP_TIMEOUT_MS,
+      cacheTtlMs: parsed.PROJECT_CACHE_TTL_MS,
+    },
   };
 }
