@@ -3,7 +3,7 @@ import { z } from 'zod';
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
-  SERVICE_NAME: z.string().min(1).default('personal-ai-ops-line'),
+  SERVICE_NAME: z.string().min(1).default('line-ai-ops-agent'),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   OPENROUTER_MODEL: z
     .string()

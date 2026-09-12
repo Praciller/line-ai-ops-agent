@@ -1,6 +1,7 @@
 {
-  "name": "personal-ai-ops-line",
+  "name": "line-ai-ops-agent",
   "version": "0.1.0",
+  "description": "A zero-cost, local-first AI operations agent controlled through LINE, with safe project monitoring, deterministic fallbacks, and free AI providers.",
   "private": true,
   "type": "module",
   "engines": { "node": ">=22" },

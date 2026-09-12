@@ -11,7 +11,7 @@ describe('runDryRun', () => {
     expect(exitCode).toBe(0);
     expect(lines).toHaveLength(1);
     expect(JSON.parse(lines[0])).toMatchObject({
-      service: 'personal-ai-ops-line',
+      service: 'line-ai-ops-agent',
       status: 'ok',
       mode: 'dry-run',
     });

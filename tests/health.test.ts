@@ -13,7 +13,7 @@ describe('GET /health', () => {
     expect(response.status).toBe(200);
     expect(response.type).toMatch(/json/);
     expect(response.body).toEqual({
-      service: 'personal-ai-ops-line',
+      service: 'line-ai-ops-agent',
       status: 'ok',
       mode: 'dry-run',
       components: {

@@ -6,7 +6,7 @@ describe('loadConfig', () => {
   it('uses safe zero-cost defaults', () => {
     const config = loadConfig({});
 
-    expect(config.serviceName).toBe('personal-ai-ops-line');
+    expect(config.serviceName).toBe('line-ai-ops-agent');
     expect(config.port).toBe(3000);
     expect(config.openRouterModel).toBe('openrouter/free');
   });

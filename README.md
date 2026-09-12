@@ -1,75 +1,77 @@
-# Personal AI Ops Agent via LINE
+# LINE AI Ops Agent
 
-Personal command center for operational checks across the owner's engineering ecosystem, exposed through LINE while keeping required monthly infrastructure cost at **0 THB**.
+A zero-cost, local-first AI operations agent controlled through LINE, with safe project monitoring, deterministic fallbacks, and free AI providers.
 
-## Current status
+This project is under active development. The repository currently contains **Phase 1 — Foundation**; later phases are planned and are not represented as completed production functionality.
 
-This repository is in **Phase 1 — Foundation**.
+## Current phase
 
-Implemented in this phase:
-- TypeScript service foundation on Node.js 22+
+Phase 1 provides:
+
+- Node.js 22+ and TypeScript service foundation
 - strict free-only AI route validation
-- structured logging with secret redaction
-- typed health reporting
+- secret-safe structured logging
+- typed `/health` reporting
 - local dry-run CLI
-- Express `/health` endpoint
-- automated tests and type checking
+- automated tests, type checking, and a build
 
-Not implemented yet:
-- LINE webhook transport
-- Neon persistence
-- GitHub/OpenDQ/Dream Logs adapters
-- live AI provider calls
-- Cloudflare Tunnel automation
+Phase 1 intentionally makes no LINE, database, AI-provider, or other external network calls. LINE, Neon, GitHub/project adapters, live AI calls, and tunnel automation are not implemented yet.
+
+## Architecture
+
+```text
+local CLI or HTTP request
+          |
+          v
+  typed config + free-only policy
+          |
+          +--> deterministic health report
+          +--> secret-redacted structured logs
+          +--> /health endpoint
+```
+
+The intended direction is LINE transport over a local-first operations core. External integrations will be added behind explicit adapters and allowlists as the project progresses.
+
+## Safety boundaries
+
+- No paid service is required for the current foundation.
+- The configuration rejects non-free OpenRouter model identifiers; it must not silently fall back to paid routes.
+- Tests and the dry-run path do not consume LINE, AI, or database quotas.
+- Secrets stay outside Git and are redacted from structured logs.
+- The current service is local-only and read-only.
+- Future commands will use explicit allowlists; arbitrary shell commands, SQL, filesystem paths, URLs, and model names are out of scope.
+
 ## Local setup
 
-Requirements:
-- Node.js 22 or newer
-- npm 12 or compatible
+Requirements: Node.js 22 or newer and npm 12 or compatible.
 
 ```bash
-npm install
+npm ci
 npm test
 npm run typecheck
 npm run build
 npm run dry-run
 ```
 
-Expected dry-run output is a single JSON health report. Phase 1 performs **no LINE, database, or AI network calls**.
-
-To run the local HTTP service:
+The dry-run command prints one JSON health report. To run the local HTTP service:
 
 ```bash
 npm run dev
 ```
 
-Then open:
+Then open <http://localhost:3000/health>. The report marks LINE, database, and AI as `not_configured` rather than claiming those dependencies are healthy.
 
-```text
-http://localhost:3000/health
-```
+Copy `.env.example` to `.env` only when local overrides are needed. The example file contains safe defaults and placeholders only.
 
-The Phase 1 health report intentionally marks LINE, database, and AI as `not_configured` rather than reporting them as healthy.
-## Configuration
+## Roadmap
 
-Copy `.env.example` to `.env` when local overrides are needed.
+1. Phase 1 Foundation — current
+2. Phase 2 LINE transport
+3. Phase 3 Project intelligence
+4. Phase 4 Persistence & observability
+5. Phase 5 Free AI enhancement
+6. Phase 6 Live LINE validation
 
-```text
-NODE_ENV=development
-PORT=3000
-SERVICE_NAME=personal-ai-ops-line
-LOG_LEVEL=info
-OPENROUTER_MODEL=openrouter/free
-```
+## License
 
-`OPENROUTER_MODEL` is intentionally restricted to `openrouter/free` in the current foundation. A paid model identifier is rejected during configuration loading.
-
-## Zero-cost and safety contract
-
-- No paid service is required for normal operation.
-- The application must never silently fall back to a paid AI route.
-- Secrets must remain outside Git and are redacted from structured logs.
-- Phase 1 is local-only and read-only.
-- Future LINE commands will use explicit allowlists; arbitrary shell, SQL, filesystem paths, URLs, and model names are out of scope.
-
-Design and implementation planning documents are under `docs/superpowers/`.
+MIT. See [LICENSE](LICENSE).
