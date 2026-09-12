@@ -11,8 +11,10 @@ import { buildHealthReport } from './health.js';
 import { InMemoryEventDeduper, type EventDeduper } from './line/dedupe.js';
 import { processWebhookEvents } from './line/processor.js';
 import { createLineSdkReplyClient, type LineReplyPort } from './line/reply.js';
+import { createPostgresCommandAudit, type CommandAudit } from './persistence/audit.js';
 import { createPostgresEventDeduper } from './persistence/event-ledger.js';
 import { ResilientEventDeduper } from './persistence/fallback-dedupe.js';
+import { NoopCommandAudit } from './persistence/noop.js';
 import { createPostgresPool } from './persistence/postgres.js';
 import type { DatabasePool } from './persistence/types.js';
 import { createProjectIntelligenceFromConfig } from './projects/factory.js';
@@ -23,6 +25,7 @@ type AppOptions = {
   reply?: LineReplyPort;
   intelligence?: ProjectIntelligence;
   databasePool?: DatabasePool;
+  audit?: CommandAudit;
 };
 
 type WebhookBody = { events: webhook.Event[] };
@@ -53,6 +56,9 @@ export function createApp(config: AppConfig, options: AppOptions = {}): Express 
   const deduper = options.deduper ?? (databasePool
     ? new ResilientEventDeduper(createPostgresEventDeduper(databasePool), new InMemoryEventDeduper())
     : new InMemoryEventDeduper());
+  const audit = options.audit ?? (databasePool
+    ? createPostgresCommandAudit(databasePool)
+    : new NoopCommandAudit());
   const reply = options.reply ?? createLineSdkReplyClient(config.line.channelAccessToken);
   const intelligence = options.intelligence ?? createProjectIntelligenceFromConfig(config.projects);
 
@@ -66,7 +72,13 @@ export function createApp(config: AppConfig, options: AppOptions = {}): Express 
           response.status(400).json({ error: 'invalid_webhook_body' });
           return;
         }
-        await processWebhookEvents(body.events, { config, deduper, reply, intelligence });
+        await processWebhookEvents(body.events, {
+          config,
+          deduper,
+          reply,
+          intelligence,
+          audit,
+        });
         response.status(200).json({ ok: true });
       } catch (error) {
         next(error);

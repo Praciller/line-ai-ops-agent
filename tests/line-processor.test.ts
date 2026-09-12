@@ -124,6 +124,21 @@ describe('project command processing', () => {
     expect(reply.calls[0]?.text).toBe('today-result');
   });
 
+  it('does not execute project intelligence twice for a duplicate event', async () => {
+    const reply = new FakeReplyPort();
+    let calls = 0;
+    const projects = async () => { calls += 1; return 'today-result'; };
+    const dependencies = {
+      ...deps(reply),
+      intelligence: { github: projects, opendq: projects, dreamlogs: projects, today: projects },
+    };
+    const event = textEvent('evt-project-dup', 'U-owner', '/today');
+
+    await processWebhookEvents([event, event], dependencies);
+
+    expect(calls).toBe(1);
+    expect(reply.calls).toHaveLength(1);
+  });
   it('does not call project intelligence for ordinary text', async () => {
     const reply = new FakeReplyPort();
     let calls = 0;
