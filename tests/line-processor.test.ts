@@ -63,6 +63,17 @@ describe('processWebhookEvents', () => {
     expect(reply.calls[0]?.text).toMatch(/\/status/);
   });
 
+  it('uses the injected runtime status provider for /status', async () => {
+    const reply = new FakeReplyPort();
+    const dependencies = {
+      ...deps(reply),
+      status: async () => 'runtime database: unhealthy',
+    };
+
+    await processWebhookEvents([textEvent('evt-status-runtime', 'U-owner', '/status')], dependencies);
+
+    expect(reply.calls[0]?.text).toBe('runtime database: unhealthy');
+  });
   it('ignores a command from a non-owner', async () => {
     const reply = new FakeReplyPort();
 

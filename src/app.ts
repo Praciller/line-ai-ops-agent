@@ -7,13 +7,15 @@ import {
 import express, { type Express, type Request, type Response } from 'express';
 
 import type { AppConfig } from './config.js';
-import { buildHealthReport } from './health.js';
+import { buildHealthReport, type HealthReport } from './health.js';
+import { renderHealthStatus } from './line/commands.js';
 import { InMemoryEventDeduper, type EventDeduper } from './line/dedupe.js';
 import { processWebhookEvents } from './line/processor.js';
 import { createLineSdkReplyClient, type LineReplyPort } from './line/reply.js';
 import { createPostgresCommandAudit, type CommandAudit } from './persistence/audit.js';
 import { createPostgresEventDeduper } from './persistence/event-ledger.js';
 import { ResilientEventDeduper } from './persistence/fallback-dedupe.js';
+import { checkDatabaseHealth } from './persistence/health.js';
 import { NoopCommandAudit } from './persistence/noop.js';
 import { createPostgresObservabilityStore } from './persistence/observability.js';
 import { createPostgresPool } from './persistence/postgres.js';
@@ -41,8 +43,17 @@ export function createApp(config: AppConfig, options: AppOptions = {}): Express 
   const app = express();
   app.disable('x-powered-by');
 
-  app.get('/health', (_request, response) => {
-    response.status(200).json(buildHealthReport(config));
+  const databasePool = options.databasePool ??
+    (config.database ? createPostgresPool(config.database) : null);
+  const health = async (): Promise<HealthReport> => buildHealthReport(
+    config,
+    config.database && databasePool
+      ? await checkDatabaseHealth(databasePool)
+      : undefined,
+  );
+
+  app.get('/health', async (_request, response) => {
+    response.status(200).json(await health());
   });
 
   if (!config.line) {
@@ -52,8 +63,6 @@ export function createApp(config: AppConfig, options: AppOptions = {}): Express 
     return app;
   }
 
-  const databasePool = options.databasePool ??
-    (config.database ? createPostgresPool(config.database) : null);
   const deduper = options.deduper ?? (databasePool
     ? new ResilientEventDeduper(createPostgresEventDeduper(databasePool), new InMemoryEventDeduper())
     : new InMemoryEventDeduper());
@@ -82,6 +91,7 @@ export function createApp(config: AppConfig, options: AppOptions = {}): Express 
           deduper,
           reply,
           intelligence,
+          status: async () => renderHealthStatus(await health()),
           audit,
         });
         response.status(200).json({ ok: true });

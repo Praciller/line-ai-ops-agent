@@ -57,6 +57,12 @@ const envSchema = z.object({
   DATABASE_POOL_MAX: z.coerce.number().int().min(1, {
     message: 'Database pool max must be at least 1',
   }).max(5, { message: 'Database pool max must be at most 5' }).default(3),
+  MESSAGE_MONTHLY_HARD_LIMIT: z.coerce.number().int().min(1, {
+    message: 'Message monthly hard limit must be at least 1',
+  }).max(300, { message: 'Message monthly hard limit must be at most 300' }).default(250),
+  MESSAGE_DAILY_PROACTIVE_HARD_LIMIT: z.coerce.number().int().min(1, {
+    message: 'Message daily proactive hard limit must be at least 1',
+  }).max(300, { message: 'Message daily proactive hard limit must be at most 300' }).default(5),
   PROJECT_GITHUB_OWNER: z.string().default('Praciller'),
   PROJECT_GITHUB_REPOS: z.string().default('line-ai-ops-agent,opendq-observatory,dreamlogsdata'),
   OPENDQ_STATUS_URL: z.string().default('https://opendq-observatory.vercel.app/'),
@@ -91,6 +97,11 @@ export type DatabaseConfig = {
   poolMax: number;
 };
 
+export type MessageBudgetConfig = {
+  monthlyHardLimit: number;
+  dailyProactiveHardLimit: number;
+};
+
 export type ProjectConfig = {
   githubOwner: string;
   githubRepos: readonly string[];
@@ -108,6 +119,7 @@ export type AppConfig = {
   openRouterModel: string;
   line: LineConfig | null;
   database: DatabaseConfig | null;
+  messageBudget: MessageBudgetConfig;
   projects: ProjectConfig;
 };
 
@@ -135,6 +147,10 @@ export function loadConfig(env: NodeJS.ProcessEnv): AppConfig {
     openRouterModel: parsed.OPENROUTER_MODEL,
     line,
     database,
+    messageBudget: {
+      monthlyHardLimit: parsed.MESSAGE_MONTHLY_HARD_LIMIT,
+      dailyProactiveHardLimit: parsed.MESSAGE_DAILY_PROACTIVE_HARD_LIMIT,
+    },
     projects: {
       githubOwner: parsed.PROJECT_GITHUB_OWNER,
       githubRepos,

@@ -40,3 +40,34 @@ describe('GET /health', () => {
     });
   });
 });
+class HealthPool {
+  constructor(private readonly healthy: boolean) {}
+  async query<T = Record<string, unknown>>() {
+    if (!this.healthy) throw new Error('database unavailable');
+    return { rows: [{ ok: 1 } as T], rowCount: 1 };
+  }
+  async withTransaction<T>(): Promise<T> { throw new Error('unused'); }
+  async close(): Promise<void> {}
+}
+
+describe('database-aware health', () => {
+  const databaseConfig = {
+    NODE_ENV: 'test',
+    DATABASE_URL: 'postgresql://user:password@db.example.com/app?sslmode=require',
+  } as const;
+
+  it('reports configured database as ok when the probe succeeds', async () => {
+    const app = createApp(loadConfig(databaseConfig), { databasePool: new HealthPool(true) });
+    const response = await request(app).get('/health');
+    expect(response.body.status).toBe('ok');
+    expect(response.body.components.database).toBe('ok');
+  });
+
+  it('degrades service health when the configured database probe fails', async () => {
+    const app = createApp(loadConfig(databaseConfig), { databasePool: new HealthPool(false) });
+    const response = await request(app).get('/health');
+    expect(response.status).toBe(200);
+    expect(response.body.status).toBe('degraded');
+    expect(response.body.components.database).toBe('unhealthy');
+  });
+});

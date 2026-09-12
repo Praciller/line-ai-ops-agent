@@ -18,6 +18,7 @@ type ProcessorDeps = {
   deduper: EventDeduper;
   reply: LineReplyPort;
   intelligence?: ProjectIntelligence;
+  status?: () => Promise<string>;
   audit?: CommandAudit;
   now?: () => number;
 };
@@ -70,9 +71,11 @@ export async function processWebhookEvents(
 
     const startedMs = now();
     try {
-      const response = deps.intelligence
-        ? await executeCommand(normalized.text, deps.config, deps.intelligence)
-        : routeCommand(normalized.text, deps.config);
+      const response = command === 'status' && deps.status
+        ? await deps.status()
+        : deps.intelligence
+          ? await executeCommand(normalized.text, deps.config, deps.intelligence)
+          : routeCommand(normalized.text, deps.config);
 
       if (response === null) {
         await deps.deduper.markProcessed(normalized.eventId);

@@ -1,5 +1,5 @@
 import type { AppConfig } from '../config.js';
-import { buildHealthReport } from '../health.js';
+import { buildHealthReport, type HealthReport } from '../health.js';
 import type { ProjectIntelligence } from '../projects/intelligence.js';
 
 export type LineCommand = {
@@ -29,14 +29,17 @@ export function renderHelp(): string {
   ].join('\n');
 }
 
-export function renderStatus(config: AppConfig): string {
-  const report = buildHealthReport(config);
+export function renderHealthStatus(report: HealthReport): string {
   return [
     `${report.service} status: ${report.status}`,
     `LINE: ${report.components.line}`,
     `Database: ${report.components.database}`,
     `AI: ${report.components.ai}`,
   ].join('\n');
+}
+
+export function renderStatus(config: AppConfig): string {
+  return renderHealthStatus(buildHealthReport(config));
 }
 
 export function routeCommand(text: string, config: AppConfig): string | null {
