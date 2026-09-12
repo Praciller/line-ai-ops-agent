@@ -1,6 +1,14 @@
+export type DeduplicationEvent = {
+  eventId: string;
+  eventType: 'message';
+  sourceIdHash: string;
+  receivedAt: string;
+};
+
 export interface EventDeduper {
-  claim(eventId: string): boolean;
-  release(eventId: string): void;
+  claim(event: DeduplicationEvent): Promise<boolean>;
+  release(eventId: string): Promise<void>;
+  markProcessed(eventId: string): Promise<void>;
 }
 
 export class InMemoryEventDeduper implements EventDeduper {
@@ -12,10 +20,9 @@ export class InMemoryEventDeduper implements EventDeduper {
     }
   }
 
-  claim(eventId: string): boolean {
-    if (this.claimed.has(eventId)) return false;
-
-    this.claimed.set(eventId, true);
+  async claim(event: DeduplicationEvent): Promise<boolean> {
+    if (this.claimed.has(event.eventId)) return false;
+    this.claimed.set(event.eventId, true);
     if (this.claimed.size > this.capacity) {
       const oldest = this.claimed.keys().next().value as string | undefined;
       if (oldest !== undefined) this.claimed.delete(oldest);
@@ -23,7 +30,9 @@ export class InMemoryEventDeduper implements EventDeduper {
     return true;
   }
 
-  release(eventId: string): void {
+  async release(eventId: string): Promise<void> {
     this.claimed.delete(eventId);
   }
+
+  async markProcessed(_eventId: string): Promise<void> {}
 }

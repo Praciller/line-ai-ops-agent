@@ -1,10 +1,11 @@
 import type { AppConfig } from './config.js';
+import type { DatabaseHealthState } from './persistence/health.js';
 
-export type ComponentState = 'not_configured' | 'configured';
+export type ComponentState = 'not_configured' | 'configured' | 'ok' | 'unhealthy';
 
 export type HealthReport = {
   service: string;
-  status: 'ok';
+  status: 'ok' | 'degraded';
   mode: 'dry-run';
   components: {
     line: ComponentState;
@@ -13,14 +14,20 @@ export type HealthReport = {
   };
 };
 
-export function buildHealthReport(config: AppConfig): HealthReport {
+export function buildHealthReport(
+  config: AppConfig,
+  databaseState?: DatabaseHealthState,
+): HealthReport {
+  const database = config.database
+    ? (databaseState ?? 'configured')
+    : 'not_configured';
   return {
     service: config.serviceName,
-    status: 'ok',
+    status: database === 'unhealthy' ? 'degraded' : 'ok',
     mode: 'dry-run',
     components: {
       line: config.line ? 'configured' : 'not_configured',
-      database: 'not_configured',
+      database,
       ai: 'not_configured',
     },
   };
