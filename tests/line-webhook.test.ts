@@ -117,3 +117,42 @@ describe('POST /webhook', () => {
     expect(reply.calls[0]?.replyToken).toBe('reply-token');
   });
 });
+
+it('processes a signed project command through injected intelligence', async () => {
+  const reply = new FakeReplyPort();
+  const config = loadConfig({
+    NODE_ENV: 'test',
+    LINE_CHANNEL_SECRET: secret,
+    LINE_CHANNEL_ACCESS_TOKEN: 'access-token',
+    LINE_OWNER_USER_IDS: 'U-owner',
+  });
+  const options = {
+    reply,
+    intelligence: {
+      github: async () => 'github-result',
+      opendq: async () => 'opendq-result',
+      dreamlogs: async () => 'dreamlogs-result',
+      today: async () => 'today-result',
+    },
+  };
+  const app = createApp(config, options);
+  const body = JSON.stringify({
+    destination: 'U-bot',
+    events: [{
+      type: 'message', mode: 'active', timestamp: 1,
+      webhookEventId: 'evt-webhook-project', deliveryContext: { isRedelivery: false },
+      source: { type: 'user', userId: 'U-owner' },
+      replyToken: 'reply-project',
+      message: { id: 'msg-project', type: 'text', text: '/github' },
+    }],
+  });
+  const response = await request(app)
+    .post('/webhook')
+    .set('Content-Type', 'application/json')
+    .set('x-line-signature', sign(body))
+    .send(body);
+
+  expect(response.status).toBe(200);
+  expect(reply.calls).toHaveLength(1);
+  expect(reply.calls[0]?.text).toBe('github-result');
+});

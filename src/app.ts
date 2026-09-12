@@ -11,10 +11,13 @@ import { buildHealthReport } from './health.js';
 import { InMemoryEventDeduper, type EventDeduper } from './line/dedupe.js';
 import { processWebhookEvents } from './line/processor.js';
 import { createLineSdkReplyClient, type LineReplyPort } from './line/reply.js';
+import { createProjectIntelligenceFromConfig } from './projects/factory.js';
+import type { ProjectIntelligence } from './projects/intelligence.js';
 
 type AppOptions = {
   deduper?: EventDeduper;
   reply?: LineReplyPort;
+  intelligence?: ProjectIntelligence;
 };
 
 type WebhookBody = {
@@ -44,6 +47,8 @@ export function createApp(config: AppConfig, options: AppOptions = {}): Express 
 
   const deduper = options.deduper ?? new InMemoryEventDeduper();
   const reply = options.reply ?? createLineSdkReplyClient(config.line.channelAccessToken);
+  const intelligence = options.intelligence ??
+    createProjectIntelligenceFromConfig(config.projects);
 
   app.post(
     '/webhook',
@@ -56,7 +61,12 @@ export function createApp(config: AppConfig, options: AppOptions = {}): Express 
           return;
         }
 
-        await processWebhookEvents(body.events, { config, deduper, reply });
+        await processWebhookEvents(body.events, {
+          config,
+          deduper,
+          reply,
+          intelligence,
+        });
         response.status(200).json({ ok: true });
       } catch (error) {
         next(error);

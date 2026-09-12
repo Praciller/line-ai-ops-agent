@@ -103,3 +103,37 @@ describe('processWebhookEvents', () => {
     expect(reply.calls).toHaveLength(1);
   });
 });
+
+describe('project command processing', () => {
+  it('executes an authorized project command through injected intelligence', async () => {
+    const reply = new FakeReplyPort();
+    let calls = 0;
+    const dependencies = {
+      ...deps(reply),
+      intelligence: {
+        github: async () => 'github-result',
+        opendq: async () => 'opendq-result',
+        dreamlogs: async () => 'dreamlogs-result',
+        today: async () => { calls += 1; return 'today-result'; },
+      },
+    };
+
+    await processWebhookEvents([textEvent('evt-project-1', 'U-owner', '/today')], dependencies);
+
+    expect(calls).toBe(1);
+    expect(reply.calls[0]?.text).toBe('today-result');
+  });
+
+  it('does not call project intelligence for ordinary text', async () => {
+    const reply = new FakeReplyPort();
+    let calls = 0;
+    const projects = async () => { calls += 1; return 'unexpected'; };
+    const dependencies = {
+      ...deps(reply),
+      intelligence: { github: projects, opendq: projects, dreamlogs: projects, today: projects },
+    };
+    await processWebhookEvents([textEvent('evt-project-2', 'U-owner', 'hello')], dependencies);
+    expect(calls).toBe(0);
+    expect(reply.calls).toHaveLength(0);
+  });
+});

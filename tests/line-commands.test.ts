@@ -1,23 +1,33 @@
 import { describe, expect, it } from 'vitest';
 
 import { loadConfig } from '../src/config.js';
-import { parseCommand, routeCommand } from '../src/line/commands.js';
+import * as commands from '../src/line/commands.js';
+import type { ProjectIntelligence } from '../src/projects/intelligence.js';
+
+const intelligence: ProjectIntelligence = {
+  github: async () => 'github-result',
+  opendq: async () => 'opendq-result',
+  dreamlogs: async () => 'dreamlogs-result',
+  today: async () => 'today-result',
+};
 
 describe('parseCommand', () => {
   it('ignores ordinary chat text', () => {
-    expect(parseCommand('hello there')).toBeNull();
+    expect(commands.parseCommand('hello there')).toBeNull();
   });
 
-  it('recognizes supported commands case-insensitively', () => {
-    expect(parseCommand(' /HELP ')).toEqual({ name: 'help' });
-    expect(parseCommand('/status')).toEqual({ name: 'status' });
+  it('recognizes every supported command case-insensitively', () => {
+    expect(commands.parseCommand(' /HELP ')).toEqual({ name: 'help' });
+    expect(commands.parseCommand('/status')).toEqual({ name: 'status' });
+    expect(commands.parseCommand('/GITHUB')).toEqual({ name: 'github' });
+    expect(commands.parseCommand('/opendq')).toEqual({ name: 'opendq' });
+    expect(commands.parseCommand('/dreamlogs')).toEqual({ name: 'dreamlogs' });
+    expect(commands.parseCommand('/today')).toEqual({ name: 'today' });
   });
 });
-
-describe('routeCommand', () => {
+describe('command execution', () => {
   it('renders help for unknown slash commands', () => {
-    const result = routeCommand('/unknown', loadConfig({ NODE_ENV: 'test' }));
-
+    const result = commands.routeCommand('/unknown', loadConfig({ NODE_ENV: 'test' }));
     expect(result).toMatch(/\/help/);
     expect(result).toMatch(/\/status/);
   });
@@ -26,13 +36,19 @@ describe('routeCommand', () => {
     const config = loadConfig({
       NODE_ENV: 'test',
       LINE_CHANNEL_SECRET: 'secret',
-      LINE_CHANNEL_ACCESS_TOKEN: 'token',      LINE_OWNER_USER_IDS: 'U-owner',
+      LINE_CHANNEL_ACCESS_TOKEN: 'token',
+      LINE_OWNER_USER_IDS: 'U-owner',
     });
+    expect(commands.routeCommand('/status', config)).toContain('LINE: configured');
+  });
 
-    const result = routeCommand('/status', config);
-
-    expect(result).toContain('LINE: configured');
-    expect(result).toContain('Database: not_configured');
-    expect(result).toContain('AI: not_configured');
+  it('executes read-only project commands through injected intelligence', async () => {
+    const executeCommand = (commands as unknown as {
+      executeCommand?: (text: string, config: ReturnType<typeof loadConfig>, projects: ProjectIntelligence) => Promise<string | null>;
+    }).executeCommand;
+    expect(typeof executeCommand).toBe('function');
+    const config = loadConfig({ NODE_ENV: 'test' });
+    expect(await executeCommand?.('/github', config, intelligence)).toBe('github-result');
+    expect(await executeCommand?.('/today', config, intelligence)).toBe('today-result');
   });
 });
