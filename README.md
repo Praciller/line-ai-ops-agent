@@ -85,6 +85,8 @@ Run the local service with `npm run dev`. Health endpoint: `GET http://localhost
 
 For a production deployment, configure the environment variables in the hosting provider rather than committing a local `.env` file. The same deterministic test, typecheck, build, and dry-run gates apply before deployment.
 
+Phase 6 deployment evidence and owner-gated live steps are tracked in [`docs/phase-6-verification.md`](docs/phase-6-verification.md).
+
 ## LINE configuration
 
 LINE is optional. Provide all three values together in an untracked `.env` or process environment:
