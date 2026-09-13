@@ -4,6 +4,7 @@ import {
   type AiProvider,
   type AiProviderName,
 } from './types.js';
+import { buildAiUserPrompt } from './prompt.js';
 
 export type AiFetch = (
   input: string | URL | Request,
@@ -37,7 +38,7 @@ function buildBody(model: string, input: AiGenerateInput) {
       },
       {
         role: 'user',
-        content: `Question:\n${input.question}\n\nDeterministic context:\n${input.context}`,
+        content: buildAiUserPrompt(input.question, input.context),
       },
     ],
     max_tokens: input.maxOutputTokens,
