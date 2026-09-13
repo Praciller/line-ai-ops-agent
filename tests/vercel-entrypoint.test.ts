@@ -20,5 +20,6 @@ describe('Vercel Express entrypoint', () => {
 
     expect(source).not.toMatch(/\.listen\s*\(/);
     expect(source).toMatch(/export default/);
+    expect(source).toMatch(/from ['"]express['"]/);
   });
 });
