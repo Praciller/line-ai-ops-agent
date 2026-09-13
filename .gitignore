@@ -7,3 +7,5 @@ coverage/
 .vitest/
 *.log
 .DS_Store
+.vercel
+.env*
