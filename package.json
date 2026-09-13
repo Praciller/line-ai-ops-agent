@@ -5,11 +5,11 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": "22.x"
   },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
     "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
     "dev": "tsx src/server.ts",
     "start": "node dist/server.js",
@@ -18,14 +18,14 @@
   },
   "dependencies": {
     "@line/bot-sdk": "^11.2.0",
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.20.2",
+    "@types/pg": "^8.23.1",
     "express": "^5.2.1",
     "pg": "^8.23.0",
     "zod": "^4.6.2"
   },
   "devDependencies": {
-    "@types/express": "^5.0.6",
-    "@types/node": "^22.20.2",
-    "@types/pg": "^8.23.1",
     "@types/supertest": "^7.2.1",
     "supertest": "^7.2.2",
     "tsx": "^4.23.13",
