@@ -1,24 +1,21 @@
 # LINE AI Ops Agent
 
-A zero-cost, local-first operations agent controlled through LINE. It combines owner-only LINE transport, deterministic read-only project intelligence, and optional PostgreSQL persistence/observability.
+A zero-cost, local-first operations agent controlled through LINE. It combines owner-only LINE transport, deterministic read-only project intelligence, optional PostgreSQL observability, and optional free-only AI reasoning.
 
-Phase 4 - Persistence and Observability is implemented on `feat/persistence-observability`. Live AI inference, Cloudflare Tunnel, and real LINE end-to-end validation remain deferred.
+Phase 5 - Free AI Enhancement is implemented on `feat/free-ai-enhancement`. Cloudflare Tunnel and real LINE end-to-end validation remain Phase 6. Dedicated Neon live verification remains pending because the connected Neon organization is Vercel-managed.
 
 ## Current capabilities
 
 - Node.js 22+ and TypeScript service foundation
 - official LINE SDK signature verification on `POST /webhook`
-- owner-only command authorization
-- duplicate `webhookEventId` suppression before command execution
-- `/help`, `/status`, `/github`, `/opendq`, `/dreamlogs`, and `/today`
+- owner-only command authorization and pre-execution webhook dedupe
+- `/help`, `/status`, `/github`, `/opendq`, `/dreamlogs`, `/today`, and `/ask <question>`
 - read-only GitHub/OpenDQ/Dream Logs adapters with bounded retry and cache
-- optional PostgreSQL persistence using `pg`
-- durable LINE event ledger when PostgreSQL is healthy, with bounded in-memory fallback on DB failure
-- SHA-256 source-ID hashing before persistence; raw LINE user IDs are not written to the persistence schema
-- metadata-only command audit records
-- best-effort project snapshots and deterministic daily digest persistence
-- provider outcome metadata store for later free-AI routing
-- proactive-message budget accounting with default monthly cap 250 and daily cap 5
+- optional PostgreSQL durable dedupe, audit, snapshots, digests, provider telemetry, and message-budget accounting
+- OpenRouter `openrouter/free` as the primary optional AI route
+- optional Groq fallback locked to `openai/gpt-oss-20b`
+- normalized bounded questions and deterministic project context only; no unrestricted tools or filesystem content reach AI providers
+- deterministic `/today` and deterministic `/ask` fallback when AI is unavailable
 - DB-aware `/health` and runtime `/status` reporting
 
 ## Runtime flow
@@ -28,9 +25,14 @@ LINE webhook -> signature verification -> owner allowlist -> durable/local dedup
                                                        |
                                                        v
                                   deterministic command router
-                         project adapters / runtime status provider
+                           project adapters / /today digest
+                              |                  |
+                              |                  +-> /ask free-AI router
+                              |                      OpenRouter Free -> Groq
+                              |                              |
+                              +------ sanitized context <---+
                                                        |
-                         audit + snapshots + digest metadata (best effort)
+                                  audit/telemetry (metadata only)
                                                        |
                                                        v
                                               LINE Reply API
@@ -39,24 +41,27 @@ LINE webhook -> signature verification -> owner allowlist -> durable/local dedup
 ## Safety boundaries
 
 - Required monthly infrastructure cost remains 0 THB.
-- Database, LINE, and later AI credentials are environment-only and must never be committed.
-- Paid OpenRouter model identifiers are rejected by configuration.
+- LINE, database, OpenRouter, and Groq credentials are environment-only and must never be committed.
+- OpenRouter is locked to `openrouter/free`; paid OpenRouter model identifiers fail configuration validation.
+- Groq is locked to `openai/gpt-oss-20b`; any other Groq model identifier fails configuration validation.
 - Only configured owner LINE user IDs may execute commands.
-- LINE text cannot choose repository names, filesystem paths, URLs, shell commands, SQL, browser actions, or model IDs.
-- Project adapters are read-only and use configured allowlists/endpoints only.
-- Raw chat transcript content is not part of the Phase 4 persistence schema.
-- Command audits store command name, outcome, latency, provider metadata, stable error class, event ID, and timestamps only.
-- Database persistence failure does not disable deterministic read-only commands.
-- Automated tests use test doubles and do not consume LINE, GitHub, AI, or database quota.
+- LINE text cannot choose repository names, filesystem paths, URLs, shell commands, SQL, browser actions, providers, or model IDs.
+- AI receives only a normalized owner question and sanitized deterministic `/today` context.
+- Provider errors never include API keys or upstream response bodies.
+- Command audit stores command name, outcome, latency, provider name, stable error class, event ID, and timestamps only; raw `/ask` questions are not persisted.
+- Provider telemetry stores provider/model/outcome/latency/error class only; prompts and responses are not persisted.
+- Database or AI failure does not disable deterministic read-only commands.
+- Automated tests use test doubles and consume no real LINE, GitHub, AI, or database quota.
 
 ## Commands
 
 - `/help` - list supported commands.
-- `/status` - runtime service/component health; reports configured database failures as degraded.
+- `/status` - runtime service/component status.
 - `/github` - summarize allowlisted public GitHub repositories.
 - `/opendq` - read-only OpenDQ repository/site evidence.
 - `/dreamlogs` - read-only Dream Logs repository/site evidence.
-- `/today` - resilient deterministic digest across configured project adapters.
+- `/today` - resilient deterministic digest across configured project adapters; never calls AI.
+- `/ask <question>` - optional AI reasoning over sanitized deterministic context with deterministic fallback.
 
 Unknown slash commands return help. Ordinary text receives no reply.
 
@@ -85,6 +90,24 @@ LINE_OWNER_USER_IDS=<comma-separated owner IDs>
 ```
 
 Partial LINE configuration is rejected at startup.
+
+## Free AI configuration
+
+AI is optional. Without provider keys, `/ask` falls back to deterministic project context and the rest of the bot remains fully usable.
+
+```text
+OPENROUTER_MODEL=openrouter/free
+OPENROUTER_API_KEY=
+GROQ_MODEL=openai/gpt-oss-20b
+GROQ_API_KEY=
+AI_PROVIDER_ORDER=openrouter,groq
+AI_REQUEST_TIMEOUT_MS=8000
+AI_MAX_OUTPUT_TOKENS=400
+```
+
+`OPENROUTER_MODEL` and `GROQ_MODEL` are fail-closed model locks. Provider order may contain only unique `openrouter` and `groq` tokens. A provider without a configured key is skipped.
+
+The AI request path allows one bounded attempt per configured provider. Timeout, 429, 5xx, network, or malformed-response failures fall through to the next configured free provider; all-provider failure returns deterministic project context rather than failing the bot.
 
 ## Project configuration
 
@@ -117,34 +140,21 @@ With a dedicated PostgreSQL/Neon database configured, apply committed migrations
 npm run db:migrate
 ```
 
-The migration creates:
+The migration creates `line_events`, `command_runs`, `project_snapshots`, `daily_digests`, `provider_outcomes`, and `message_budget`.
 
-- `line_events`
-- `command_runs`
-- `project_snapshots`
-- `daily_digests`
-- `provider_outcomes`
-- `message_budget`
-
-Database failure is surfaced as `database: unhealthy` and service `degraded`, while read-only commands continue using bounded fallback behavior where applicable.
+Database failure is surfaced as `database: unhealthy` and service `degraded`, while deterministic read-only commands continue using bounded fallback behavior where applicable.
 
 ### Message budget
 
 Phase 4 implements accounting only; it does **not** send proactive messages. Future proactive sends must reserve budget atomically before delivery. Defaults are 250 chargeable messages/month and 5 proactive messages/day. Dry-run budget checks do not mutate counters.
 
-## Current Neon provisioning limitation
-
-The authenticated Neon organization is currently managed by Vercel. Direct creation of the planned dedicated `line-ai-ops-agent` Neon project is restricted by that account policy. The unrelated existing `glms-postgres` project is intentionally not reused or modified.
-
-The persistence implementation, migration, mock-based integration coverage, and configuration are complete, but live dedicated-Neon migration verification remains pending until a standalone Neon project can be provisioned through the account UI/integration.
-
 ## Current limitations
 
-- Live dedicated Neon migration verification is pending because the connected Neon organization is Vercel-managed.
+- Live dedicated Neon migration verification is pending because the connected Neon organization is Vercel-managed; the unrelated `glms-postgres` project is intentionally not reused.
+- Groq live inference verification is pending explicit confirmation that the current Groq account/key is on the Free Plan. The key is available locally, but no Groq inference request is made until that zero-cost condition is verified.
 - In DB outage mode, dedupe falls back to bounded in-memory state and therefore is not durable across process restarts.
 - Project-status cache remains in-memory.
 - Site reachability does not prove application correctness or data freshness.
-- Live OpenRouter/Groq inference and `/ask` are Phase 5.
 - Cloudflare Tunnel and real owner-only LINE E2E validation are Phase 6.
 
 ## Roadmap
@@ -152,8 +162,8 @@ The persistence implementation, migration, mock-based integration coverage, and 
 1. Phase 1 Foundation - complete
 2. Phase 2 LINE transport - complete
 3. Phase 3 Project intelligence - complete
-4. Phase 4 Persistence and observability - code complete; live dedicated-Neon verification pending account provisioning
-5. Phase 5 Free AI enhancement - OpenRouter Free, optional Groq Free fallback, `/ask`
+4. Phase 4 Persistence and observability - complete with live dedicated-Neon provisioning limitation
+5. Phase 5 Free AI enhancement - code complete; OpenRouter Free live smoke verified; Groq live smoke pending Free Plan confirmation
 6. Phase 6 Live LINE validation - Cloudflare Tunnel and real owner-only E2E
 7. Later backlog - job radar and local knowledge retrieval, then carefully scoped HITL write actions
 

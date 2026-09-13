@@ -6,6 +6,8 @@ import {
 } from '@line/bot-sdk';
 import express, { type Express, type Request, type Response } from 'express';
 
+import { createAiAskServiceFromConfig } from './ai/factory.js';
+import type { AiAskService } from './ai/ask.js';
 import type { AppConfig } from './config.js';
 import { buildHealthReport, type HealthReport } from './health.js';
 import { renderHealthStatus } from './line/commands.js';
@@ -27,6 +29,7 @@ type AppOptions = {
   deduper?: EventDeduper;
   reply?: LineReplyPort;
   intelligence?: ProjectIntelligence;
+  ask?: AiAskService;
   databasePool?: DatabasePool;
   audit?: CommandAudit;
 };
@@ -75,6 +78,11 @@ export function createApp(config: AppConfig, options: AppOptions = {}): Express 
     config.projects,
     { observability },
   );
+  const ask = options.ask ?? createAiAskServiceFromConfig(
+    config.ai,
+    intelligence,
+    { observability },
+  );
 
   app.post(
     '/webhook',
@@ -91,6 +99,7 @@ export function createApp(config: AppConfig, options: AppOptions = {}): Express 
           deduper,
           reply,
           intelligence,
+          ask,
           status: async () => renderHealthStatus(await health()),
           audit,
         });

@@ -117,3 +117,26 @@ describe('command audit', () => {
     expect(reply.calls).toHaveLength(1);
   });
 });
+
+describe('AI ask audit boundary', () => {
+  it('classifies /ask as a known command without retaining the question', () => {
+    expect(classifyAuditCommand('/ask highly sensitive owner question')).toBe('ask');
+  });
+
+  it('records provider metadata for /ask without raw question text', async () => {
+    const reply = new FakeReply();
+    const audit = new FakeAudit();
+    await processWebhookEvents([event('/ask highly sensitive owner question', 'evt-ask-audit')], {
+      config: config(),
+      deduper: new InMemoryEventDeduper(),
+      reply,
+      audit,
+      ask: { async ask() { return { text: 'answer', providerUsed: 'groq' }; } },
+      now: clock(5000, 5015),
+    });
+    expect(audit.records[0]).toMatchObject({
+      command: 'ask', outcome: 'success', providerUsed: 'groq', latencyMs: 15,
+    });
+    expect(JSON.stringify(audit.records[0])).not.toContain('highly sensitive owner question');
+  });
+});

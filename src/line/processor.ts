@@ -1,5 +1,6 @@
 import type { webhook } from '@line/bot-sdk';
 
+import type { AiAskService } from '../ai/ask.js';
 import type { AppConfig } from '../config.js';
 import {
   classifyAuditCommand,
@@ -8,7 +9,7 @@ import {
   type CommandAuditInput,
 } from '../persistence/audit.js';
 import type { ProjectIntelligence } from '../projects/intelligence.js';
-import { executeCommand, routeCommand } from './commands.js';
+import { executeCommand, parseCommand, renderHelp, routeCommand } from './commands.js';
 import type { EventDeduper } from './dedupe.js';
 import { normalizeCommandEvent } from './events.js';
 import type { LineReplyPort } from './reply.js';
@@ -18,6 +19,7 @@ type ProcessorDeps = {
   deduper: EventDeduper;
   reply: LineReplyPort;
   intelligence?: ProjectIntelligence;
+  ask?: AiAskService;
   status?: () => Promise<string>;
   audit?: CommandAudit;
   now?: () => number;
@@ -38,6 +40,7 @@ function auditInput(
   outcome: CommandAuditInput['outcome'],
   startedMs: number,
   finishedMs: number,
+  providerUsed: string | null,
   error: unknown = null,
 ): CommandAuditInput {
   return {
@@ -45,7 +48,7 @@ function auditInput(
     command,
     outcome,
     latencyMs: Math.max(0, finishedMs - startedMs),
-    providerUsed: null,
+    providerUsed,
     errorClass: outcome === 'error' ? classifyAuditError(error) : null,
     startedAt: new Date(startedMs).toISOString(),
     finishedAt: new Date(finishedMs).toISOString(),
@@ -70,19 +73,32 @@ export async function processWebhookEvents(
     if (!(await deps.deduper.claim(normalized))) continue;
 
     const startedMs = now();
+    let providerUsed: string | null = null;
     try {
-      const response = command === 'status' && deps.status
-        ? await deps.status()
-        : deps.intelligence
+      let response: string | null;
+      if (command === 'status' && deps.status) {
+        response = await deps.status();
+      } else if (command === 'ask') {
+        const parsed = parseCommand(normalized.text);
+        if (parsed?.name !== 'ask' || !parsed.question || !deps.ask) {
+          response = renderHelp();
+        } else {
+          const result = await deps.ask.ask(parsed.question);
+          response = result.text;
+          providerUsed = result.providerUsed;
+        }
+      } else {
+        response = deps.intelligence
           ? await executeCommand(normalized.text, deps.config, deps.intelligence)
           : routeCommand(normalized.text, deps.config);
+      }
 
       if (response === null) {
         await deps.deduper.markProcessed(normalized.eventId);
         const finishedMs = now();
         await safeAudit(
           deps.audit,
-          auditInput(normalized.eventId, command, 'ignored', startedMs, finishedMs),
+          auditInput(normalized.eventId, command, 'ignored', startedMs, finishedMs, providerUsed),
         );
         continue;
       }
@@ -92,14 +108,14 @@ export async function processWebhookEvents(
       const finishedMs = now();
       await safeAudit(
         deps.audit,
-        auditInput(normalized.eventId, command, 'success', startedMs, finishedMs),
+        auditInput(normalized.eventId, command, 'success', startedMs, finishedMs, providerUsed),
       );
     } catch (error) {
       await deps.deduper.release(normalized.eventId);
       const finishedMs = now();
       await safeAudit(
         deps.audit,
-        auditInput(normalized.eventId, command, 'error', startedMs, finishedMs, error),
+        auditInput(normalized.eventId, command, 'error', startedMs, finishedMs, providerUsed, error),
       );
       throw error;
     }

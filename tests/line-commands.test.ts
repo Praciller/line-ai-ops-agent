@@ -52,3 +52,18 @@ describe('command execution', () => {
     expect(await executeCommand?.('/today', config, intelligence)).toBe('today-result');
   });
 });
+
+
+describe('/ask command parsing', () => {
+  it('preserves the question while matching the command case-insensitively', () => {
+    expect(commands.parseCommand('/ASK What Needs Attention?')).toEqual({
+      name: 'ask',
+      question: 'What Needs Attention?',
+    });
+  });
+
+  it('represents a missing question explicitly and documents ask in help', () => {
+    expect(commands.parseCommand('/ask')).toEqual({ name: 'ask', question: '' });
+    expect(commands.renderHelp()).toContain('/ask <question>');
+  });
+});

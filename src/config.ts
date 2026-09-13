@@ -11,6 +11,17 @@ function parseOwnerUserIds(value: string | undefined): string[] {
   return parseCsv(value);
 }
 
+export type AiProviderName = 'openrouter' | 'groq';
+
+function parseProviderOrder(value: string): AiProviderName[] {
+  const items = value.split(',').map((item) => item.trim()).filter(Boolean);
+  const allowed = new Set<AiProviderName>(['openrouter', 'groq']);
+  if (items.length === 0 || items.some((item) => !allowed.has(item as AiProviderName)) || new Set(items).size !== items.length) {
+    throw new Error('AI provider order must contain unique openrouter/groq tokens only');
+  }
+  return items as AiProviderName[];
+}
+
 function parseRepositorySlugs(value: string): string[] {
   const repos = parseCsv(value);
   if (repos.length === 0 || repos.some((repo) => !slugPattern.test(repo))) {
@@ -47,6 +58,19 @@ const envSchema = z.object({
     (value) => value === 'openrouter/free',
     { message: 'Free-only policy requires OPENROUTER_MODEL=openrouter/free' },
   ),
+  OPENROUTER_API_KEY: z.string().optional(),
+  GROQ_API_KEY: z.string().optional(),
+  GROQ_MODEL: z.string().default('openai/gpt-oss-20b').refine(
+    (value) => value === 'openai/gpt-oss-20b',
+    { message: 'Free-only policy requires GROQ_MODEL=openai/gpt-oss-20b' },
+  ),
+  AI_PROVIDER_ORDER: z.string().default('openrouter,groq'),
+  AI_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000, {
+    message: 'AI request timeout must be at least 1000ms',
+  }).max(15000, { message: 'AI request timeout must be at most 15000ms' }).default(8000),
+  AI_MAX_OUTPUT_TOKENS: z.coerce.number().int().min(64, {
+    message: 'AI max output tokens must be at least 64',
+  }).max(1024, { message: 'AI max output tokens must be at most 1024' }).default(400),
   LINE_CHANNEL_SECRET: z.string().optional(),
   LINE_CHANNEL_ACCESS_TOKEN: z.string().optional(),
   LINE_OWNER_USER_IDS: z.string().optional(),
@@ -97,6 +121,19 @@ export type DatabaseConfig = {
   poolMax: number;
 };
 
+export type AiProviderConfig = {
+  apiKey: string;
+  model: string;
+};
+
+export type AiConfig = {
+  openRouter: AiProviderConfig | null;
+  groq: AiProviderConfig | null;
+  providerOrder: readonly AiProviderName[];
+  requestTimeoutMs: number;
+  maxOutputTokens: number;
+};
+
 export type MessageBudgetConfig = {
   monthlyHardLimit: number;
   dailyProactiveHardLimit: number;
@@ -119,6 +156,7 @@ export type AppConfig = {
   openRouterModel: string;
   line: LineConfig | null;
   database: DatabaseConfig | null;
+  ai: AiConfig | null;
   messageBudget: MessageBudgetConfig;
   projects: ProjectConfig;
 };
@@ -138,6 +176,16 @@ export function loadConfig(env: NodeJS.ProcessEnv): AppConfig {
   const database = parsed.DATABASE_URL
     ? { url: requirePostgresUrl(parsed.DATABASE_URL), connectTimeoutMs: parsed.DATABASE_CONNECT_TIMEOUT_MS, poolMax: parsed.DATABASE_POOL_MAX }
     : null;
+  const providerOrder = parseProviderOrder(parsed.AI_PROVIDER_ORDER);
+  const openRouter = parsed.OPENROUTER_API_KEY
+    ? { apiKey: parsed.OPENROUTER_API_KEY, model: parsed.OPENROUTER_MODEL }
+    : null;
+  const groq = parsed.GROQ_API_KEY
+    ? { apiKey: parsed.GROQ_API_KEY, model: parsed.GROQ_MODEL }
+    : null;
+  const ai = openRouter || groq
+    ? { openRouter, groq, providerOrder, requestTimeoutMs: parsed.AI_REQUEST_TIMEOUT_MS, maxOutputTokens: parsed.AI_MAX_OUTPUT_TOKENS }
+    : null;
 
   return {
     nodeEnv: parsed.NODE_ENV,
@@ -147,6 +195,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): AppConfig {
     openRouterModel: parsed.OPENROUTER_MODEL,
     line,
     database,
+    ai,
     messageBudget: {
       monthlyHardLimit: parsed.MESSAGE_MONTHLY_HARD_LIMIT,
       dailyProactiveHardLimit: parsed.MESSAGE_DAILY_PROACTIVE_HARD_LIMIT,

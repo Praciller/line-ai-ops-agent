@@ -2,19 +2,27 @@ import type { AppConfig } from '../config.js';
 import { buildHealthReport, type HealthReport } from '../health.js';
 import type { ProjectIntelligence } from '../projects/intelligence.js';
 
-export type LineCommand = {
-  name: 'help' | 'status' | 'github' | 'opendq' | 'dreamlogs' | 'today';
-};
+type SimpleCommandName = 'help' | 'status' | 'github' | 'opendq' | 'dreamlogs' | 'today';
 
-const supported = new Set<LineCommand['name']>([
+export type LineCommand =
+  | { name: SimpleCommandName }
+  | { name: 'ask'; question: string };
+
+const supported = new Set<SimpleCommandName>([
   'help', 'status', 'github', 'opendq', 'dreamlogs', 'today',
 ]);
 
 export function parseCommand(text: string): LineCommand | null {
-  const normalized = text.trim().toLowerCase();
-  if (!normalized.startsWith('/')) return null;
-  const name = normalized.slice(1) as LineCommand['name'];
-  return supported.has(name) ? { name } : { name: 'help' };
+  const trimmed = text.trim();
+  if (!trimmed.startsWith('/')) return null;
+  const whitespace = trimmed.search(/\s/);
+  const token = (whitespace === -1 ? trimmed.slice(1) : trimmed.slice(1, whitespace)).toLowerCase();
+  const remainder = whitespace === -1 ? '' : trimmed.slice(whitespace).trim();
+  if (token === 'ask') return { name: 'ask', question: remainder };
+  if (remainder) return { name: 'help' };
+  return supported.has(token as SimpleCommandName)
+    ? { name: token as SimpleCommandName }
+    : { name: 'help' };
 }
 
 export function renderHelp(): string {
@@ -26,6 +34,7 @@ export function renderHelp(): string {
     '/opendq - show OpenDQ read-only evidence',
     '/dreamlogs - show Dream Logs read-only evidence',
     '/today - show resilient project digest',
+    '/ask <question> - reason over sanitized project context with free AI fallback',
   ].join('\n');
 }
 

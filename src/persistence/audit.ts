@@ -7,6 +7,7 @@ export type AuditCommandName =
   | 'opendq'
   | 'dreamlogs'
   | 'today'
+  | 'ask'
   | 'unknown';
 
 export type CommandOutcome = 'success' | 'ignored' | 'error';
@@ -27,7 +28,7 @@ export interface CommandAudit {
 }
 
 const knownCommands = new Set<AuditCommandName>([
-  'help', 'status', 'github', 'opendq', 'dreamlogs', 'today',
+  'help', 'status', 'github', 'opendq', 'dreamlogs', 'today', 'ask',
 ]);
 
 export function classifyAuditCommand(text: string): AuditCommandName | null {
