@@ -1,4 +1,4 @@
-# Phase 5 Free AI Enhancement Implementation Plan
+﻿# Phase 5 Free AI Enhancement Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -22,7 +22,9 @@
 - `/today` stays deterministic and does not consume AI quota.
 - Tests make zero real provider calls.
 
----### Task 1: Free-only AI configuration contract
+---
+
+### Task 1: Free-only AI configuration contract
 
 **Files:** Modify `src/config.ts`, `.env.example`; create `tests/ai-config.test.ts`.
 
@@ -46,7 +48,9 @@
 - [ ] Implement fetch-injected clients. OpenRouter uses `https://openrouter.ai/api/v1/chat/completions`; Groq uses `https://api.groq.com/openai/v1/chat/completions`.
 - [ ] Never include API keys in thrown errors or telemetry.
 - [ ] Run focused/full tests, typecheck, build, diff-check.
-- [ ] Commit `feat: add free AI provider clients`.### Task 3: Free-provider router and metadata telemetry
+- [ ] Commit `feat: add free AI provider clients`.
+
+### Task 3: Free-provider router and metadata telemetry
 
 **Files:** Create `src/ai/router.ts`; modify `src/persistence/observability.ts` only if a narrow adapter is needed; create `tests/ai-router.test.ts`.
 
@@ -72,7 +76,9 @@
 - [ ] Fallback text must include the deterministic digest and never include provider exception details.
 - [ ] `/today` itself must remain AI-free.
 - [ ] Run focused/full tests, typecheck, build, diff-check.
-- [ ] Commit `feat: add deterministic-safe ask service`.\r\n\r\n### Task 5: LINE `/ask`, audit provider metadata, and AI health state
+- [ ] Commit `feat: add deterministic-safe ask service`.
+
+### Task 5: LINE `/ask`, audit provider metadata, and AI health state
 
 **Files:** Modify `src/line/commands.ts`, `src/line/processor.ts`, `src/persistence/audit.ts`, `src/health.ts`, `src/app.ts`; update command/processor/webhook/health tests.
 
