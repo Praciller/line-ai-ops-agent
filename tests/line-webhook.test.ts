@@ -156,3 +156,43 @@ it('processes a signed project command through injected intelligence', async () 
   expect(reply.calls).toHaveLength(1);
   expect(reply.calls[0]?.text).toBe('github-result');
 });
+
+
+it('processes a signed /ask command through an injected ask service', async () => {
+  const reply = new FakeReplyPort();
+  const questions: string[] = [];
+  const config = loadConfig({
+    NODE_ENV: 'test',
+    LINE_CHANNEL_SECRET: secret,
+    LINE_CHANNEL_ACCESS_TOKEN: 'access-token',
+    LINE_OWNER_USER_IDS: 'U-owner',
+  });
+  const app = createApp(config, {
+    reply,
+    ask: {
+      async ask(question: string) {
+        questions.push(question);
+        return { text: 'ask-result', providerUsed: 'openrouter' };
+      },
+    },
+  });
+  const body = JSON.stringify({
+    destination: 'U-bot',
+    events: [{
+      type: 'message', mode: 'active', timestamp: 1,
+      webhookEventId: 'evt-webhook-ask', deliveryContext: { isRedelivery: false },
+      source: { type: 'user', userId: 'U-owner' },
+      replyToken: 'reply-ask',
+      message: { id: 'msg-ask', type: 'text', text: '/ask What needs attention?' },
+    }],
+  });
+  const response = await request(app)
+    .post('/webhook')
+    .set('Content-Type', 'application/json')
+    .set('x-line-signature', sign(body))
+    .send(body);
+
+  expect(response.status).toBe(200);
+  expect(questions).toEqual(['What needs attention?']);
+  expect(reply.calls[0]?.text).toBe('ask-result');
+});

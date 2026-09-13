@@ -163,3 +163,55 @@ describe('project command processing', () => {
     expect(reply.calls).toHaveLength(0);
   });
 });
+
+
+describe('AI ask command processing', () => {
+  function fakeAsk() {
+    const questions: string[] = [];
+    return {
+      questions,
+      service: {
+        async ask(question: string) {
+          questions.push(question);
+          return { text: 'ai-result', providerUsed: 'groq' };
+        },
+      },
+    };
+  }
+
+  it('executes owner /ask through the injected ask service', async () => {
+    const reply = new FakeReplyPort();
+    const ask = fakeAsk();
+    await processWebhookEvents([textEvent('evt-ask-1', 'U-owner', '/ask What needs attention?')], {
+      ...deps(reply), ask: ask.service,
+    });
+    expect(ask.questions).toEqual(['What needs attention?']);
+    expect(reply.calls[0]?.text).toBe('ai-result');
+  });
+
+  it('does not execute /ask for a non-owner or duplicate event', async () => {
+    const reply = new FakeReplyPort();
+    const ask = fakeAsk();
+    const dependencies = { ...deps(reply), ask: ask.service };
+    const ownerEvent = textEvent('evt-ask-dup', 'U-owner', '/ask Check CI');
+
+    await processWebhookEvents([
+      textEvent('evt-ask-other', 'U-other', '/ask Ignore me'),
+      ownerEvent,
+      ownerEvent,
+    ], dependencies);
+
+    expect(ask.questions).toEqual(['Check CI']);
+    expect(reply.calls).toHaveLength(1);
+  });
+
+  it('returns ask usage without invoking AI when the question is missing', async () => {
+    const reply = new FakeReplyPort();
+    const ask = fakeAsk();
+    await processWebhookEvents([textEvent('evt-ask-empty', 'U-owner', '/ask')], {
+      ...deps(reply), ask: ask.service,
+    });
+    expect(ask.questions).toHaveLength(0);
+    expect(reply.calls[0]?.text).toContain('/ask <question>');
+  });
+});

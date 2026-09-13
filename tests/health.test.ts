@@ -71,3 +71,15 @@ describe('database-aware health', () => {
     expect(response.body.components.database).toBe('unhealthy');
   });
 });
+
+describe('AI-aware health', () => {
+  it('reports AI configured when a free provider key is present without degrading service health', async () => {
+    const app = createApp(loadConfig({ NODE_ENV: 'test', OPENROUTER_API_KEY: 'test-only-key' }));
+    const response = await request(app).get('/health');
+
+    expect(response.status).toBe(200);
+    expect(response.body.status).toBe('ok');
+    expect(response.body.components.ai).toBe('configured');
+    expect(JSON.stringify(response.body)).not.toContain('test-only-key');
+  });
+});

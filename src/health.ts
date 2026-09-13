@@ -28,7 +28,7 @@ export function buildHealthReport(
     components: {
       line: config.line ? 'configured' : 'not_configured',
       database,
-      ai: 'not_configured',
+      ai: config.ai ? 'configured' : 'not_configured',
     },
   };
 }
