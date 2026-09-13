@@ -7,6 +7,15 @@ async function readJson(path: string) {
 }
 
 describe('Vercel production TypeScript contract', () => {
+  it('keeps the verified Express deployment build command reproducible', async () => {
+    const config = await readJson('../vercel.json');
+
+    expect(config).toEqual({
+      $schema: 'https://openapi.vercel.sh/vercel.json',
+      buildCommand: 'echo vercel-build',
+    });
+  });
+
   it('keeps test-only globals and eager Node type loading out of production tsconfig', async () => {
     const config = await readJson('../tsconfig.json');
 
