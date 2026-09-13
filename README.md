@@ -2,7 +2,7 @@
 
 A zero-cost, local-first operations agent controlled through LINE. It combines owner-only LINE transport, deterministic read-only project intelligence, optional PostgreSQL observability, and optional free-only AI reasoning.
 
-Phase 5 - Free AI Enhancement is implemented on `feat/free-ai-enhancement`. Cloudflare Tunnel and real LINE end-to-end validation remain Phase 6. Dedicated Neon live verification remains pending because the connected Neon organization is Vercel-managed.
+The project is under active development. Phase 5 is implemented, and the Phase 6 live-validation work is being prepared on `feat/live-line-vercel`. The public deployment target is a Vercel Hobby Express function; the local PC is not required to keep the production webhook reachable. Dedicated Neon live verification remains pending because persistence is optional and the connected Neon organization is Vercel-managed.
 
 ## Current capabilities
 
@@ -37,6 +37,10 @@ LINE webhook -> signature verification -> owner allowlist -> durable/local dedup
                                                        v
                                               LINE Reply API
 ```
+
+## Public deployment shape
+
+The intended zero-cost deployment uses Vercel Hobby with the Express entrypoint in `index.ts` and the production alias `line-ai-ops-agent.vercel.app`. Vercel stores only the required production environment variables; `DATABASE_URL` remains unset until a dedicated persistence decision is made. No tunnel, VPN overlay, or paid runtime is required.
 
 ## Safety boundaries
 
@@ -78,6 +82,8 @@ npm run dry-run
 ```
 
 Run the local service with `npm run dev`. Health endpoint: `GET http://localhost:3000/health`.
+
+For a production deployment, configure the environment variables in the hosting provider rather than committing a local `.env` file. The same deterministic test, typecheck, build, and dry-run gates apply before deployment.
 
 ## LINE configuration
 
@@ -155,7 +161,7 @@ Phase 4 implements accounting only; it does **not** send proactive messages. Fut
 - In DB outage mode, dedupe falls back to bounded in-memory state and therefore is not durable across process restarts.
 - Project-status cache remains in-memory.
 - Site reachability does not prove application correctness or data freshness.
-- Cloudflare Tunnel and real owner-only LINE E2E validation are Phase 6.
+- Real owner-only LINE E2E validation requires the owner to send a test command to the configured Official Account. Until that manual message is sent, live owner E2E remains unverified.
 
 ## Roadmap
 
@@ -164,7 +170,7 @@ Phase 4 implements accounting only; it does **not** send proactive messages. Fut
 3. Phase 3 Project intelligence - complete
 4. Phase 4 Persistence and observability - complete with live dedicated-Neon provisioning limitation
 5. Phase 5 Free AI enhancement - code complete; OpenRouter Free live smoke verified; Groq live smoke pending Free Plan confirmation
-6. Phase 6 Live LINE validation - Cloudflare Tunnel and real owner-only E2E
+6. Phase 6 Live LINE validation - Vercel Hobby deployment, Messaging API webhook administration, and real owner-only E2E
 7. Later backlog - job radar and local knowledge retrieval, then carefully scoped HITL write actions
 
 ## License
