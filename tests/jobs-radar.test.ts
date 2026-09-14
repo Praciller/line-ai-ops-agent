@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { createJobRadarFromDefaults } from '../src/jobs/factory.js';
 import { createJobRadar } from '../src/jobs/radar.js';
 import type { JobSourceAdapter } from '../src/jobs/adapters/types.js';
 import type { JobListing, JobSource, JobSourceBatch } from '../src/jobs/types.js';
@@ -100,5 +101,24 @@ describe('createJobRadar', () => {
       { source: 'jobicy', outcome: 'timeout', count: 0, latencyMs: 0 },
     ]);
     expect(JSON.stringify(result)).not.toContain('private timeout details');
+  });
+});
+
+describe('default job radar factory', () => {
+  it('uses exactly the three fixed public sources without env configuration', async () => {
+    const seen: string[] = [];
+    const fetchFn = async (input: string | URL) => {
+      const url = String(input);
+      seen.push(url);
+      if (url.includes('jobicy.com')) return new Response(JSON.stringify({ jobs: [] }), { status: 200 });
+      if (url.includes('himalayas.app')) return new Response(JSON.stringify({ jobs: [] }), { status: 200 });
+      return new Response(JSON.stringify([]), { status: 200 });
+    };
+
+    const result = await createJobRadarFromDefaults(fetchFn).find();
+
+    expect(result.sources.map((source) => source.source)).toEqual(['jobicy', 'himalayas', 'remoteok']);
+    expect(seen).toHaveLength(3);
+    expect(seen.every((url) => url.startsWith('https://'))).toBe(true);
   });
 });

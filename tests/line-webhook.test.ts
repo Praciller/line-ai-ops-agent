@@ -196,3 +196,46 @@ it('processes a signed /ask command through an injected ask service', async () =
   expect(questions).toEqual(['What needs attention?']);
   expect(reply.calls[0]?.text).toBe('ask-result');
 });
+
+it('processes a signed /jobs command through an injected job radar', async () => {
+  const reply = new FakeReplyPort();
+  let calls = 0;
+  const config = loadConfig({
+    NODE_ENV: 'test',
+    LINE_CHANNEL_SECRET: secret,
+    LINE_CHANNEL_ACCESS_TOKEN: 'access-token',
+    LINE_OWNER_USER_IDS: 'U-owner',
+  });
+  const app = createApp(config, {
+    reply,
+    jobs: {
+      async find() {
+        calls += 1;
+        return {
+          jobs: [],
+          sources: [{ source: 'jobicy' as const, outcome: 'success' as const, count: 0, latencyMs: 1 }],
+          generatedAt: '2026-09-15T00:00:00.000Z',
+        };
+      },
+    },
+  });
+  const body = JSON.stringify({
+    destination: 'U-bot',
+    events: [{
+      type: 'message', mode: 'active', timestamp: 1,
+      webhookEventId: 'evt-webhook-jobs', deliveryContext: { isRedelivery: false },
+      source: { type: 'user', userId: 'U-owner' },
+      replyToken: 'reply-jobs',
+      message: { id: 'msg-jobs', type: 'text', text: '/jobs' },
+    }],
+  });
+  const response = await request(app)
+    .post('/webhook')
+    .set('Content-Type', 'application/json')
+    .set('x-line-signature', sign(body))
+    .send(body);
+
+  expect(response.status).toBe(200);
+  expect(calls).toBe(1);
+  expect(reply.calls[0]?.text).toContain('No strong matches found right now');
+});
