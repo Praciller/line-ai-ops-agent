@@ -2,6 +2,8 @@ import type { webhook } from '@line/bot-sdk';
 
 import type { AiAskService } from '../ai/ask.js';
 import type { AppConfig } from '../config.js';
+import { renderJobRadar } from '../jobs/render.js';
+import type { JobRadar } from '../jobs/radar.js';
 import {
   classifyAuditCommand,
   classifyAuditError,
@@ -19,6 +21,7 @@ type ProcessorDeps = {
   deduper: EventDeduper;
   reply: LineReplyPort;
   intelligence?: ProjectIntelligence;
+  jobs?: JobRadar;
   ask?: AiAskService;
   status?: () => Promise<string>;
   audit?: CommandAudit;
@@ -78,6 +81,10 @@ export async function processWebhookEvents(
       let response: string | null;
       if (command === 'status' && deps.status) {
         response = await deps.status();
+      } else if (command === 'jobs') {
+        response = deps.jobs
+          ? renderJobRadar(await deps.jobs.find())
+          : 'Job radar unavailable';
       } else if (command === 'ask') {
         const parsed = parseCommand(normalized.text);
         if (parsed?.name !== 'ask' || !parsed.question || !deps.ask) {
