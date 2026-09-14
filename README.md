@@ -9,8 +9,9 @@ Phases 1-6 are complete and the production LINE webhook is live on Vercel Hobby.
 - Node.js 22+ and TypeScript service foundation
 - official LINE SDK signature verification on `POST /webhook`
 - owner-only command authorization and pre-execution webhook dedupe
-- `/help`, `/status`, `/github`, `/opendq`, `/dreamlogs`, `/today`, and `/ask <question>`
+- `/help`, `/status`, `/github`, `/opendq`, `/dreamlogs`, `/today`, `/jobs`, and `/ask <question>`
 - read-only GitHub/OpenDQ/Dream Logs adapters with bounded retry and cache
+- read-only `/jobs` radar using fixed public Jobicy, Himalayas, and Remote OK feeds with deterministic Thailand-first ranking
 - optional PostgreSQL durable dedupe, audit, snapshots, digests, provider telemetry, and message-budget accounting
 - OpenRouter `openrouter/free` as the primary optional AI route
 - optional Groq fallback locked to `openai/gpt-oss-20b`
@@ -50,6 +51,7 @@ The intended zero-cost deployment uses Vercel Hobby with the Express entrypoint 
 - Groq is locked to `openai/gpt-oss-20b`; any other Groq model identifier fails configuration validation.
 - Only configured owner LINE user IDs may execute commands.
 - LINE text cannot choose repository names, filesystem paths, URLs, shell commands, SQL, browser actions, providers, or model IDs.
+- `/jobs` uses only fixed HTTPS hosts and fixed internal source queries; LINE input cannot supply a fetch URL or arbitrary upstream query.
 - AI receives only a normalized owner question and sanitized deterministic `/today` context.
 - Provider errors never include API keys or upstream response bodies.
 - Command audit stores command name, outcome, latency, provider name, stable error class, event ID, and timestamps only; raw `/ask` questions are not persisted.
@@ -83,9 +85,11 @@ npm run dry-run
 
 Run the local service with `npm run dev`. Health endpoint: `GET http://localhost:3000/health`.
 
+`npm run jobs:smoke` is an explicit live smoke for the three public job feeds. It is never run by normal CI and should not be looped or scheduled more frequently than provider guidance allows.
+
 For a production deployment, configure the environment variables in the hosting provider rather than committing a local `.env` file. The same deterministic test, typecheck, build, and dry-run gates apply before deployment.
 
-Phase 6 deployment evidence and owner-gated live steps are tracked in [`docs/phase-6-verification.md`](docs/phase-6-verification.md).
+Phase 6 deployment evidence is tracked in [`docs/phase-6-verification.md`](docs/phase-6-verification.md). Phase 7 job-radar verification is tracked in [`docs/phase-7-verification.md`](docs/phase-7-verification.md).
 
 ## LINE configuration
 
@@ -161,7 +165,8 @@ Phase 4 implements accounting only; it does **not** send proactive messages. Fut
 - Live dedicated Neon migration verification is pending because the connected Neon organization is Vercel-managed; the unrelated `glms-postgres` project is intentionally not reused.
 - Groq live inference verification is pending explicit confirmation that the current Groq account/key is on the Free Plan. The key is available locally, but no Groq inference request is made until that zero-cost condition is verified.
 - In DB outage mode, dedupe falls back to bounded in-memory state and therefore is not durable across process restarts.
-- Project-status cache remains in-memory.
+- Project-status and Phase 7 job-feed caches remain in-memory and may be lost on Vercel cold start.
+- Job-feed availability and location metadata are controlled by public upstream sources; `/jobs` degrades truthfully rather than fabricating matches.
 - Site reachability does not prove application correctness or data freshness.
 
 ## Roadmap
@@ -172,7 +177,8 @@ Phase 4 implements accounting only; it does **not** send proactive messages. Fut
 4. Phase 4 Persistence and observability - complete with live dedicated-Neon provisioning limitation
 5. Phase 5 Free AI enhancement - code complete; OpenRouter Free live smoke verified; Groq live smoke pending Free Plan confirmation
 6. Phase 6 Live LINE validation - complete; Vercel Hobby deployment, Messaging API webhook verification, Use webhook activation, and real owner-only `/status` E2E all verified
-7. Later backlog - job radar and local knowledge retrieval, then carefully scoped HITL write actions
+7. Phase 7 Job radar - implementation in progress; owner-only, read-only, zero-cost, deterministic matching across Jobicy/Himalayas/Remote OK
+8. Later backlog - local knowledge retrieval, then carefully scoped HITL write actions
 
 ## License
 
