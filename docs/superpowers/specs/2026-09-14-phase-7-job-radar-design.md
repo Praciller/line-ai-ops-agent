@@ -1,6 +1,6 @@
 # Phase 7 Job Radar Design
 
-**Status:** Approved architecture; written spec pending owner review.
+**Status:** Approved by owner; ready for implementation.
 
 ## Goal
 
