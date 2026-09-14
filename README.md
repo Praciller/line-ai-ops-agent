@@ -2,7 +2,7 @@
 
 A zero-cost, local-first operations agent controlled through LINE. It combines owner-only LINE transport, deterministic read-only project intelligence, optional PostgreSQL observability, and optional free-only AI reasoning.
 
-The project is under active development. Phase 5 is implemented, and the Phase 6 live-validation work is being prepared on `feat/live-line-vercel`. The public deployment target is a Vercel Hobby Express function; the local PC is not required to keep the production webhook reachable. Dedicated Neon live verification remains pending because persistence is optional and the connected Neon organization is Vercel-managed.
+Phases 1-6 are complete and the production LINE webhook is live on Vercel Hobby. The local PC is not required to keep the production webhook reachable. Dedicated Neon live verification remains pending because persistence is optional and the connected Neon organization is Vercel-managed.
 
 ## Current capabilities
 
@@ -163,7 +163,6 @@ Phase 4 implements accounting only; it does **not** send proactive messages. Fut
 - In DB outage mode, dedupe falls back to bounded in-memory state and therefore is not durable across process restarts.
 - Project-status cache remains in-memory.
 - Site reachability does not prove application correctness or data freshness.
-- Real owner-only LINE E2E validation requires the owner to send a test command to the configured Official Account. Until that manual message is sent, live owner E2E remains unverified.
 
 ## Roadmap
 
@@ -172,7 +171,7 @@ Phase 4 implements accounting only; it does **not** send proactive messages. Fut
 3. Phase 3 Project intelligence - complete
 4. Phase 4 Persistence and observability - complete with live dedicated-Neon provisioning limitation
 5. Phase 5 Free AI enhancement - code complete; OpenRouter Free live smoke verified; Groq live smoke pending Free Plan confirmation
-6. Phase 6 Live LINE validation - Vercel Hobby deployment, Messaging API webhook administration, and real owner-only E2E
+6. Phase 6 Live LINE validation - complete; Vercel Hobby deployment, Messaging API webhook verification, Use webhook activation, and real owner-only `/status` E2E all verified
 7. Later backlog - job radar and local knowledge retrieval, then carefully scoped HITL write actions
 
 ## License
