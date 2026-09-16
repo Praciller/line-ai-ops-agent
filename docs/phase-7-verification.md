@@ -1,6 +1,6 @@
 # Phase 7 Job Radar Verification
 
-Status: `PREPRODUCTION_VERIFIED`
+Status: `PRODUCTION_DEPLOYED_OWNER_E2E_PENDING`
 
 ## Design
 
@@ -41,12 +41,12 @@ The first live smoke exposed that Remote OK represents missing salary metadata a
 ## Production acceptance
 
 ```text
-PRODUCTION_DEPLOYMENT=NOT_RUN_FINAL
-PRODUCTION_HEALTH=NOT_RUN_FINAL
+PRODUCTION_DEPLOYMENT=READY
+PRODUCTION_HEALTH=HTTP_200_LINE_CONFIGURED_AI_CONFIGURED_DATABASE_NOT_CONFIGURED
 REAL_OWNER_JOBS_E2E=OWNER_ACTION_REQUIRED
 PRODUCTION_WEBHOOK_HTTP=NOT_RUN_FINAL
 DUPLICATE_REPLY=NOT_RUN_FINAL
 RUNTIME_ERRORS=NOT_RUN_FINAL
 ```
 
-Production deployment and the real owner `/jobs` LINE E2E remain pending. The Phase 7 pull request must remain open and unmerged until the owner explicitly approves merge after live `/jobs` E2E.
+The verified implementation is deployed to `https://line-ai-ops-agent.vercel.app`. The real owner `/jobs` LINE E2E remains pending. The Phase 7 pull request must remain open and unmerged until the owner explicitly approves merge after live `/jobs` E2E.
