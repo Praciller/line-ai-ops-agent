@@ -215,3 +215,42 @@ describe('AI ask command processing', () => {
     expect(reply.calls[0]?.text).toContain('/ask <question>');
   });
 });
+
+describe('jobs command processing', () => {
+  it('executes owner /jobs once for duplicate delivery without invoking AI', async () => {
+    const reply = new FakeReplyPort();
+    let jobCalls = 0;
+    let aiCalls = 0;
+    const dependencies = {
+      ...deps(reply),
+      jobs: {
+        async find() {
+          jobCalls += 1;
+          return {
+            jobs: [],
+            sources: [{ source: 'jobicy' as const, outcome: 'success' as const, count: 0, latencyMs: 1 }],
+            generatedAt: '2026-09-15T00:00:00.000Z',
+          };
+        },
+      },
+      ask: {
+        async ask() {
+          aiCalls += 1;
+          return { text: 'unexpected-ai', providerUsed: 'unexpected' };
+        },
+      },
+    };
+    const ownerEvent = textEvent('evt-jobs', 'U-owner', '/jobs');
+
+    await processWebhookEvents([
+      textEvent('evt-jobs-other', 'U-other', '/jobs'),
+      ownerEvent,
+      ownerEvent,
+    ], dependencies);
+
+    expect(jobCalls).toBe(1);
+    expect(aiCalls).toBe(0);
+    expect(reply.calls).toHaveLength(1);
+    expect(reply.calls[0]?.text).toContain('No strong matches found right now');
+  });
+});

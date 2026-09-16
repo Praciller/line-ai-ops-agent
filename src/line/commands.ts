@@ -2,14 +2,14 @@ import type { AppConfig } from '../config.js';
 import { buildHealthReport, type HealthReport } from '../health.js';
 import type { ProjectIntelligence } from '../projects/intelligence.js';
 
-type SimpleCommandName = 'help' | 'status' | 'github' | 'opendq' | 'dreamlogs' | 'today';
+type SimpleCommandName = 'help' | 'status' | 'github' | 'opendq' | 'dreamlogs' | 'today' | 'jobs';
 
 export type LineCommand =
   | { name: SimpleCommandName }
   | { name: 'ask'; question: string };
 
 const supported = new Set<SimpleCommandName>([
-  'help', 'status', 'github', 'opendq', 'dreamlogs', 'today',
+  'help', 'status', 'github', 'opendq', 'dreamlogs', 'today', 'jobs',
 ]);
 
 export function parseCommand(text: string): LineCommand | null {
@@ -34,6 +34,7 @@ export function renderHelp(): string {
     '/opendq - show OpenDQ read-only evidence',
     '/dreamlogs - show Dream Logs read-only evidence',
     '/today - show resilient project digest',
+    '/jobs - show ranked AI/Data/MLOps opportunities',
     '/ask <question> - reason over sanitized project context with free AI fallback',
   ].join('\n');
 }

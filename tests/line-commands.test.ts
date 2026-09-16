@@ -67,3 +67,11 @@ describe('/ask command parsing', () => {
     expect(commands.renderHelp()).toContain('/ask <question>');
   });
 });
+
+
+describe('/jobs command parsing', () => {
+  it('recognizes jobs case-insensitively and documents it in help', () => {
+    expect(commands.parseCommand('/JOBS')).toEqual({ name: 'jobs' });
+    expect(commands.renderHelp()).toContain('/jobs');
+  });
+});

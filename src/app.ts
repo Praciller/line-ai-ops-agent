@@ -10,6 +10,8 @@ import { createAiAskServiceFromConfig } from './ai/factory.js';
 import type { AiAskService } from './ai/ask.js';
 import type { AppConfig } from './config.js';
 import { buildHealthReport, type HealthReport } from './health.js';
+import { createJobRadarFromDefaults } from './jobs/factory.js';
+import type { JobRadar } from './jobs/radar.js';
 import { renderHealthStatus } from './line/commands.js';
 import { InMemoryEventDeduper, type EventDeduper } from './line/dedupe.js';
 import { processWebhookEvents } from './line/processor.js';
@@ -29,6 +31,7 @@ type AppOptions = {
   deduper?: EventDeduper;
   reply?: LineReplyPort;
   intelligence?: ProjectIntelligence;
+  jobs?: JobRadar;
   ask?: AiAskService;
   databasePool?: DatabasePool;
   audit?: CommandAudit;
@@ -83,6 +86,7 @@ export function createApp(config: AppConfig, options: AppOptions = {}): Express 
     intelligence,
     { observability },
   );
+  const jobs = options.jobs ?? createJobRadarFromDefaults();
 
   app.post(
     '/webhook',
@@ -99,6 +103,7 @@ export function createApp(config: AppConfig, options: AppOptions = {}): Express 
           deduper,
           reply,
           intelligence,
+          jobs,
           ask,
           status: async () => renderHealthStatus(await health()),
           audit,

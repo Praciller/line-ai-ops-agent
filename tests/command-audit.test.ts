@@ -140,3 +140,9 @@ describe('AI ask audit boundary', () => {
     expect(JSON.stringify(audit.records[0])).not.toContain('highly sensitive owner question');
   });
 });
+
+describe('jobs audit boundary', () => {
+  it('classifies /jobs as a known command', () => {
+    expect(classifyAuditCommand('/jobs')).toBe('jobs');
+  });
+});
