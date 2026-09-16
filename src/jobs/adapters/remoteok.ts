@@ -20,7 +20,9 @@ const RemoteOkJob = z.object({
 const ENDPOINT = new URL('https://remoteok.com/api');
 
 function salary(job: z.infer<typeof RemoteOkJob>): string | null {
-  const values = [job.salary_min, job.salary_max].filter((value): value is number => typeof value === 'number');
+  const values = [job.salary_min, job.salary_max].filter(
+    (value): value is number => typeof value === 'number' && value > 0,
+  );
   if (values.length === 0) return null;
   return values.length === 2 ? `${values[0]}-${values[1]}` : `${values[0]}`;
 }

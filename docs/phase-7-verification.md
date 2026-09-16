@@ -1,6 +1,6 @@
 # Phase 7 Job Radar Verification
 
-Status: `IN_PROGRESS`
+Status: `PREPRODUCTION_VERIFIED`
 
 ## Design
 
@@ -14,37 +14,39 @@ Status: `IN_PROGRESS`
 ## Automated verification
 
 ```text
-TESTS=NOT_RUN_FINAL
-TYPECHECK=NOT_RUN_FINAL
-BUILD=NOT_RUN_FINAL
-DRY_RUN=NOT_RUN_FINAL
-NPM_AUDIT=NOT_RUN_FINAL
-DIFF_CHECK=NOT_RUN_FINAL
-SECRET_SCAN=NOT_RUN_FINAL
+TESTS=PASS_168_OF_168
+TYPECHECK=PASS
+BUILD=PASS
+DRY_RUN=PASS
+NPM_AUDIT=PASS_0_VULNERABILITIES
+DIFF_CHECK=PASS
+SECRET_SCAN=PASS_0_FINDINGS
 ```
 
-Automated CI tests use fixtures and injected fetch implementations. Normal CI must not call live job feeds.
+Automated CI tests use fixtures and injected fetch implementations. Normal CI does not call live job feeds.
 
 ## Live source smoke
 
+The one permitted post-fix live smoke completed successfully for all three fixed public feeds:
+
 ```text
-JOBICY_LIVE=NOT_RUN
-HIMALAYAS_LIVE=NOT_RUN
-REMOTEOK_LIVE=NOT_RUN
-LIVE_MATCH_COUNT=NOT_RUN
+JOBICY_LIVE=PASS
+HIMALAYAS_LIVE=PASS
+REMOTEOK_LIVE=PASS
+LIVE_MATCH_COUNT=2
 ```
 
-Only source/outcome/count/latency metadata and bounded rendered results may be printed. Full upstream payloads and descriptions are not verification artifacts.
+The first live smoke exposed that Remote OK represents missing salary metadata as `salary_min=0` and `salary_max=0`, which rendered as `Salary: 0-0`. A TDD regression test and normalization fix now treat non-positive salary bounds as missing. The post-fix smoke produced no `Salary: 0-0` output. Only sanitized source status and bounded rendered fields are retained; upstream descriptions and raw payloads are not verification artifacts.
 
 ## Production acceptance
 
 ```text
-PRODUCTION_DEPLOYMENT=NOT_RUN
-PRODUCTION_HEALTH=NOT_RUN
-REAL_OWNER_JOBS_E2E=NOT_RUN
-PRODUCTION_WEBHOOK_HTTP=NOT_RUN
-DUPLICATE_REPLY=NOT_RUN
-RUNTIME_ERRORS=NOT_RUN
+PRODUCTION_DEPLOYMENT=NOT_RUN_FINAL
+PRODUCTION_HEALTH=NOT_RUN_FINAL
+REAL_OWNER_JOBS_E2E=OWNER_ACTION_REQUIRED
+PRODUCTION_WEBHOOK_HTTP=NOT_RUN_FINAL
+DUPLICATE_REPLY=NOT_RUN_FINAL
+RUNTIME_ERRORS=NOT_RUN_FINAL
 ```
 
-The Phase 7 pull request must remain open and unmerged until the owner explicitly approves merge after live `/jobs` E2E.
+Production deployment and the real owner `/jobs` LINE E2E remain pending. The Phase 7 pull request must remain open and unmerged until the owner explicitly approves merge after live `/jobs` E2E.

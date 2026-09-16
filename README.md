@@ -177,7 +177,7 @@ Phase 4 implements accounting only; it does **not** send proactive messages. Fut
 4. Phase 4 Persistence and observability - complete with live dedicated-Neon provisioning limitation
 5. Phase 5 Free AI enhancement - code complete; OpenRouter Free live smoke verified; Groq live smoke pending Free Plan confirmation
 6. Phase 6 Live LINE validation - complete; Vercel Hobby deployment, Messaging API webhook verification, Use webhook activation, and real owner-only `/status` E2E all verified
-7. Phase 7 Job radar - implementation in progress; owner-only, read-only, zero-cost, deterministic matching across Jobicy/Himalayas/Remote OK
+7. Phase 7 Job radar - implementation and preproduction verification complete; production owner E2E pending; owner-only, read-only, zero-cost, deterministic matching across Jobicy/Himalayas/Remote OK
 8. Later backlog - local knowledge retrieval, then carefully scoped HITL write actions
 
 ## License

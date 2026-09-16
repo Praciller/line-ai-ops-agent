@@ -57,3 +57,22 @@ describe('Remote OK adapter', () => {
     expect(batch.jobs.map((job) => job.sourceId)).toEqual(['2']);
   });
 });
+
+it('treats zero salary bounds as missing metadata', async () => {
+  const payload = [
+    { legal: 'metadata row' },
+    {
+      id: 99,
+      position: 'AI Engineer',
+      company: 'No Salary Co',
+      location: 'Worldwide',
+      tags: ['python'],
+      salary_min: 0,
+      salary_max: 0,
+      url: 'https://remoteok.com/remote-jobs/99-ai-engineer',
+    },
+  ];
+
+  const batch = await createRemoteOkAdapter(fakeFetch(payload)).fetch();
+  expect(batch.jobs[0]?.salary).toBeNull();
+});
