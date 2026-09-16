@@ -1,6 +1,6 @@
 # Phase 7 Job Radar Verification
 
-Status: `PRODUCTION_DEPLOYED_OWNER_E2E_PENDING`
+Status: `PRODUCTION_E2E_VERIFIED_AWAITING_OWNER_MERGE_APPROVAL`
 
 ## Design
 
@@ -27,7 +27,7 @@ Automated CI tests use fixtures and injected fetch implementations. Normal CI do
 
 ## Live source smoke
 
-The one permitted post-fix live smoke completed successfully for all three fixed public feeds:
+The permitted post-fix live smoke completed successfully for all three fixed public feeds:
 
 ```text
 JOBICY_LIVE=PASS
@@ -41,12 +41,20 @@ The first live smoke exposed that Remote OK represents missing salary metadata a
 ## Production acceptance
 
 ```text
-PRODUCTION_DEPLOYMENT=READY
+PRODUCTION_DEPLOYMENT=PASS
 PRODUCTION_HEALTH=HTTP_200_LINE_CONFIGURED_AI_CONFIGURED_DATABASE_NOT_CONFIGURED
-REAL_OWNER_JOBS_E2E=OWNER_ACTION_REQUIRED
-PRODUCTION_WEBHOOK_HTTP=NOT_RUN_FINAL
-DUPLICATE_REPLY=NOT_RUN_FINAL
-RUNTIME_ERRORS=NOT_RUN_FINAL
+REAL_OWNER_JOBS_E2E=PASS
+PRODUCTION_WEBHOOK_HTTP=200
+LINE_SIGNATURE=PASS
+OWNER_ALLOWLIST=PASS
+JOB_RADAR_EXECUTION=PASS
+LINE_REPLY=PASS
+DUPLICATE_REPLY=NOT_OBSERVED
+RUNTIME_ERRORS=NONE
 ```
 
-The verified implementation is deployed to `https://line-ai-ops-agent.vercel.app`. The real owner `/jobs` LINE E2E remains pending. The Phase 7 pull request must remain open and unmerged until the owner explicitly approves merge after live `/jobs` E2E.
+Owner-visible LINE evidence shows one `/jobs` request and one bounded reply containing two ranked Remote OK matches. The reply includes source attribution and apply URLs, contains no `Salary: 0-0`, and does not expose upstream job descriptions or raw payloads.
+
+Vercel runtime evidence for the same owner test shows one production `POST /webhook` with HTTP 200 at `2026-09-16T17:04:50Z` and no runtime errors in the surrounding `/webhook` window. Because the LINE reply contains ranked job results rather than help text, the request passed the signed webhook path, owner authorization, `/jobs` routing, radar execution, rendering, and reply delivery.
+
+The verified implementation is deployed to `https://line-ai-ops-agent.vercel.app`. Pull request #8 must remain open and unmerged until the owner explicitly approves the Phase 7 merge.
